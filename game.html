@@ -10834,7 +10834,7 @@ function newPlayer(cfg, name){
   for(const id in DB) if(DB[id].start) owned[id] = DB[id].start;
   for(const id in DB) if(DB[id].pers)  pers[id]  = DB[id].pers;   // your own stacks
   return {
-    name, owned, pers, board:[], cards:{}, hand:{},
+    name, owned, pers, board:[], cards:{}, hand:{}, units:[],
     res:{wood:cfg.start.wood, food:cfg.start.food, gold:cfg.start.gold},
     incAdj:{wood:0, food:0, gold:0},
     earned:{wood:0, food:0, gold:0}, spent:{wood:0, food:0, gold:0},
@@ -10866,6 +10866,10 @@ function fixPlayer(p){
   /* hand maps a printed code to its design, for the cards this player is holding RIGHT
      NOW. It is the difference between a scan meaning "I drew this" and "I played this". */
   if(!p.hand) p.hand = {};
+  /* units holds what is DEPLOYED on the table, so an attack can take a named one off it.
+     Buildings live in board; workers live as codes on the building they staff. */
+  if(!Array.isArray(p.units)) p.units = [];
+  if(Array.isArray(p.board)) p.board.forEach(b => { if(!Array.isArray(b.staff)) b.staff = []; });
   return p;
 }
 
@@ -10947,7 +10951,10 @@ function actPlay(G, i, id, opts){
 
   const cs = RES.filter(r => cost[r]).map(r => `${cost[r]} ${r}`).join(', ') || 'free';
 
-  if(c.cat === 'building'){ p.board.push({id, workers:0}); return {log:`built ${c.n} (${cs})`}; }
+  /* opts.code is the printed code of the physical card being played. Recording it is
+     what lets a later scan say "this exact Lumber Camp", not "a Lumber Camp". */
+  const code = (opts && opts.code) || null;
+  if(c.cat === 'building'){ p.board.push({id, code, workers:0, staff:[]}); return {log:`built ${c.n} (${cs})`}; }
   if(c.gain){ RES.forEach(r => { if(c.gain[r]) p.res[r] += c.gain[r]; }); return {log:`cashed ${c.n}`}; }
   if(c.act === 'worker'){ return {log:`played Worker (${cs})`, follow:'worker'}; }
   if(c.act === 'reclaim'){ return {log:`played Reclaim (${cs})`, follow:'reclaim'}; }
@@ -10955,17 +10962,65 @@ function actPlay(G, i, id, opts){
     G.players[1-i].frozen = G.cfg.freeze;
     return {log:`played ${c.n} (${cs}) — ${G.players[1-i].name} frozen ${G.cfg.freeze}s`};
   }
-  if(c.act === 'attack'){ return {log:`played ${c.n} (${cs})`, hold:`Attack — ${p.name}`}; }
+  if(c.act === 'attack'){ return {log:`played ${c.n} (${cs})`, hold:`Attack — ${p.name} · scan anything destroyed`}; }
   if(c.pauseFor) return {log:`played ${c.n} (${cs})`, wait:c.pauseFor};
-  if(c.cat === 'unit') return {log:`deployed ${c.n} (${cs})`};
+  if(c.cat === 'unit'){ p.units.push({id, code}); return {log:`deployed ${c.n} (${cs})`}; }
   return {log:`played ${c.n} (${cs})`};
 }
 
-function actStaff(G, i, bIdx){
-  const p = G.players[i], b = p.board[bIdx], c = DB[b.id];
-  if(!b || !c.cap || b.workers >= c.cap) return null;
+function actStaff(G, i, bIdx, workerCode){
+  const p = G.players[i], b = p.board[bIdx];
+  if(!b) return null;
+  const c = DB[b.id];
+  if(!c.cap || b.workers >= c.cap) return null;
+  if(!Array.isArray(b.staff)) b.staff = [];
+  if(workerCode) b.staff.push(workerCode);      // so Famine can take a named worker off
   b.workers++;
   return `staffed ${c.n} (${b.workers}/${c.cap})`;
+}
+
+/* Where is this physical card right now? The three answers are mutually exclusive, and
+   together they are everything the app believes is on the table. */
+function findOnTable(i, code){
+  const p = G.players[i];
+  for(let bi = 0; bi < p.board.length; bi++){
+    if(p.board[bi].code === code) return {kind:'building', bi};
+  }
+  for(let ui = 0; ui < (p.units || []).length; ui++){
+    if(p.units[ui].code === code) return {kind:'unit', ui};
+  }
+  for(let bi = 0; bi < p.board.length; bi++){
+    const si = (p.board[bi].staff || []).indexOf(code);
+    if(si >= 0) return {kind:'worker', bi, si};
+  }
+  return null;
+}
+
+/* A destroyed unit is exiled: out of the deck for good, so the physical card stops being
+   drawable. A destroyed BUILDING goes to the discard and stays in the deck — that
+   asymmetry is the rule, not an oversight. */
+function actLoseUnit(G, i, uIdx){
+  const p = G.players[i], u = p.units[uIdx];
+  if(!u) return null;
+  snap(p, 'unit destroyed');
+  p.units.splice(uIdx, 1);
+  const id = u.id;
+  if(p.owned[id]){ p.owned[id]--; if(!p.owned[id]) delete p.owned[id]; }
+  if(u.code){ delete p.cards[u.code]; delete p.hand[u.code]; }
+  p.exiled++;
+  return `${DB[id].n} destroyed — exiled from the deck`;
+}
+
+function actLoseWorker(G, i, bIdx, sIdx){
+  const p = G.players[i], b = p.board[bIdx];
+  if(!b) return null;
+  snap(p, 'worker killed');
+  const code = (b.staff || []).splice(sIdx, 1)[0];
+  b.workers = Math.max(0, b.workers - 1);
+  if(code){ delete p.cards[code]; delete p.hand[code]; }
+  if(p.owned.worker){ p.owned.worker--; if(!p.owned.worker) delete p.owned.worker; }
+  p.exiled++;
+  return `worker at ${DB[b.id].n} killed (${b.workers}/${DB[b.id].cap})`;
 }
 
 function buyRes(c){ return c.buyR || 'gold'; }        // personal stacks are bought with Wood
@@ -10987,7 +11042,16 @@ function actLoseBuilding(G, i, bIdx){
   if(!b) return null;
   snap(p, 'lost building');
   p.board.splice(bIdx, 1);
-  return `lost ${DB[b.id].n} — back to discard`;
+  /* Workers standing at it die with it — they are exiled, the building is not. */
+  let lost = 0;
+  for(const code of (b.staff || [])){
+    lost++;
+    if(code){ delete p.cards[code]; delete p.hand[code]; }
+    if(p.owned.worker){ p.owned.worker--; if(!p.owned.worker) delete p.owned.worker; }
+  }
+  if(!lost) lost = b.workers || 0;
+  p.exiled += lost;
+  return `lost ${DB[b.id].n} — back to discard` + (lost ? ` · ${lost} worker${lost === 1 ? '' : 's'} exiled` : '');
 }
 
 /* Units are exiled by the rules, but the tracker no longer asks about it — there was no
@@ -11138,12 +11202,13 @@ function applyDoc(raw, force){
      empty value. Object.assign skips absent keys, so without this the receiver would
      keep showing a building its owner had already lost. Reset the collections first,
      then let the snapshot fill in whatever it actually carries. */
-  const EMPTY = {board:[], owned:{}, pers:{}, cards:{}, hand:{}};
+  const EMPTY = {board:[], owned:{}, pers:{}, cards:{}, hand:{}, units:[]};
   (d.players || []).forEach((sp, i) => {
     const t = G.players[i], keep = t.undo;
     for(const k in EMPTY) if(!(k in sp)) t[k] = Array.isArray(EMPTY[k]) ? [] : {};
     Object.assign(t, sp);
     if(!Array.isArray(t.board)) t.board = [];
+    if(!Array.isArray(t.units)) t.units = [];
     t.undo = keep;
     fixPlayer(t);
   });
@@ -11307,7 +11372,9 @@ function screenHTML(i){
 
   else if(s === 'worker'){
     const open = p.board.map((b,bi) => ({b,bi})).filter(o => DB[o.b.id].cap && o.b.workers < DB[o.b.id].cap);
-    h += `<div class="scrhead"><h3>Staff which building?</h3></div><div class="cardlist">`;
+    h += `<div class="scrhead"><h3>Staff which building?</h3></div>
+      <p class="note" style="margin:0"><b>Scan the building</b> and put it back on the table,
+      or tap it below.</p><div class="cardlist">`;
     if(!open.length) h += `<div class="empty">No building with free capacity. The Worker is spent either way — Undo if that was a misclick.</div>`;
     for(const o of open){
       const c = DB[o.b.id];
@@ -11321,7 +11388,8 @@ function screenHTML(i){
 
   else if(s === 'lose'){
     h += `<div class="scrhead"><h3>Which building was destroyed?</h3>
-      <button class="btn sm" data-act="close">Cancel</button></div><div class="cardlist">`;
+      <button class="btn sm" data-act="close">Cancel</button></div>
+      <p class="note" style="margin:0">You can also scan it.</p><div class="cardlist">`;
     if(!p.board.length) h += `<div class="empty">Nothing built yet.</div>`;
     p.board.forEach((b, bi) => {
       const c = DB[b.id];
@@ -11544,7 +11612,7 @@ function handleAct(i, b){
   }
 
   if(a === 'play'){
-    const r = actPlay(G, i, b.dataset.id, {});
+    const r = actPlay(G, i, b.dataset.id, {});   // tapped, so no physical card is identified
     if(!r) return;
     say(i, r.log);
     if(r.follow){ nav.screen = r.follow; renderPanel(i); renderStats(); return; }
@@ -11555,7 +11623,7 @@ function handleAct(i, b){
     renderPanel(0); renderPanel(1); renderStats(); return;
   }
   if(a === 'buy'){ say(i, actBuy(G, i, b.dataset.id)); closeNav(i); return; }
-  if(a === 'staff'){ say(i, actStaff(G, i, +b.dataset.i)); closeNav(i); return; }
+  if(a === 'staff'){ say(i, actStaff(G, i, +b.dataset.i, nav && nav.worker)); closeNav(i); return; }
   if(a === 'lose'){ say(i, actLoseBuilding(G, i, +b.dataset.i)); closeNav(i); return; }
   if(a === 'dorec'){ say(i, actReclaim(G, i, b.dataset.id)); closeNav(i); return; }
 
@@ -11589,12 +11657,15 @@ function renderLog(){
 }
 
 function deckSize(p){ let n = 0; for(const k in p.owned) n += p.owned[k]; return n; }
+function unitCount(p){ return (p.units || []).length; }
 
 function renderStats(){
   const total = G.clock + G.pausedTime;
   const pct = total > 0 ? Math.round(G.pausedTime / total * 100) : 0;
   const rows = [
     ['Deck size',     p => deckSize(p)],
+    ['Units deployed', p => unitCount(p)],
+    ['Exiled',        p => p.exiled],
     ['Buildings up',  p => p.board.length],
     ['Cards played',  p => p.plays],
     ['Market buys',   p => p.buys],
@@ -11919,6 +11990,14 @@ function onScan(raw){
 
   if(G.phase === 'setup'){ doSetupDraw(i, c); return; }
 
+  /* Placing a worker: the building is a card sitting on the table, so scan it and put it
+     back. The tap list stays as a fallback for a building the camera will not read. */
+  if(nav && nav.p === i && nav.screen === 'worker'){ doScanStaff(i, c); return; }
+
+  /* Mid-attack, a scan names what was destroyed. It applies to whoever owns the card, not
+     to whoever is attacking — dice go both ways, and the defender can kill the attacker. */
+  if(G.paused && G.pause && G.pause.manual){ doScanLoss(i, c); return; }
+
   if(buying >= 0){
     if(buying !== i){ sndDenied(); scanSay(`That card belongs to Player ${i+1}`, true); return; }
     if(!card.buy){ sndDenied(); scanSay(`${card.n} is not for sale`, true); return; }
@@ -11979,6 +12058,40 @@ function doScanDraw(i, c){
   renderBoth(); renderStats(); push();
 }
 
+function doScanStaff(i, c){
+  const p = G.players[i], card = DB[c.id];
+  const at = findOnTable(i, c.code);
+  if(!at || at.kind !== 'building'){
+    sndDenied();
+    scanSay(card.cat === 'building' ? `That ${card.n} is not on your board` : `${card.n} is not a building`, true);
+    return;
+  }
+  const b = p.board[at.bi], bc = DB[b.id];
+  if(!bc.cap){ sndDenied(); scanSay(`${bc.n} takes no workers`, true); return; }
+  if(b.workers >= bc.cap){ sndDenied(); scanSay(`${bc.n} is already full (${b.workers}/${bc.cap})`, true); return; }
+  const r = actStaff(G, i, at.bi, nav && nav.worker);
+  if(!r){ sndDenied(); return; }
+  say(i, r); sndGain(); scanSay(r);
+  closeNav(i); renderStats(); push();
+}
+
+function doScanLoss(i, c){
+  const p = G.players[i], card = DB[c.id];
+  const at = findOnTable(i, c.code);
+  if(!at){
+    sndDenied();
+    scanSay(`${card.n} is not on the table — scan the card that was destroyed`, true);
+    return;
+  }
+  let r = null;
+  if(at.kind === 'building') r = actLoseBuilding(G, i, at.bi);
+  else if(at.kind === 'unit') r = actLoseUnit(G, i, at.ui);
+  else r = actLoseWorker(G, i, at.bi, at.si);
+  if(!r){ sndDenied(); return; }
+  say(i, r); sndDenied(); scanSay(r, true);   // a loss should not sound like a success
+  renderBoth(); renderStats(); push();
+}
+
 function doScanBuy(i, c){
   const card = DB[c.id], r = actBuy(G, i, c.id);
   if(!r){
@@ -12004,11 +12117,11 @@ function doScanPlay(i, c){
   if(!p.owned[c.id]){ sndDenied(); scanSay(`${card.n} is not in your deck — scan your HQ to buy it`, true); return; }
   if(!afford(p, effCost(p, c.id))){ sndDenied(); scanSay(`Not enough resources for ${card.n}`, true); return; }
 
-  const r = actPlay(G, i, c.id, {});
+  const r = actPlay(G, i, c.id, {code:c.code});
   if(!r){ sndDenied(); return; }
   delete p.hand[c.code];                 // it is on the table now, not in hand
   sndScan(); say(i, r.log); scanSay(r.log);
-  if(r.follow){ nav = {p:i, mode:'play', screen:r.follow, cat:null};
+  if(r.follow){ nav = {p:i, mode:'play', screen:r.follow, cat:null, worker:c.code};
                 hold(`Playing a card — ${p.name}`, null, false); }
   else if(r.hold) hold(r.hold, null, true);
   else if(r.wait) hold(`Resolving ${card.n} — ${p.name}`, r.wait, false);
@@ -12241,14 +12354,21 @@ function fbWrap(ref){
   };
 }
 
+/* Order matters. Inside claude.ai the host store is the only one that CAN work — that
+   page's CSP blocks the Firebase scripts outright — so it is tried first and a baked-in
+   config never gets a chance to break the artifact build. On a plain web server
+   window.claude does not exist, so this costs nothing and falls straight through. */
 async function openRef(){
+  if(window.claude && claude.use){
+    let db = null;
+    try{ db = await claude.use('db'); }catch(e){ db = null; }
+    if(db) return db.doc('game/state');
+  }
   if(LINK.cfg && LINK.room){
     const db = await fbLoad();
     return fbWrap(db.ref('rooms/' + LINK.room + '/state'));
   }
-  let db = null;
-  try{ db = window.claude && claude.use ? await claude.use('db') : null; }catch(e){ db = null; }
-  return db ? db.doc('game/state') : null;
+  return null;
 }
 
 function linkState(){
