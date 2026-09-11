@@ -10157,6 +10157,12 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
 }
 
 *{box-sizing:border-box}
+/* The browser's own [hidden] rule is display:none at the weakest possible specificity,
+   so ANY class rule that sets display beats it — .pausebar{display:flex} left the pause
+   banner on screen permanently, still showing whatever it last said. The artifact host
+   injects this line for us; a page served from a plain web server gets nothing, so it
+   has to live here or the two builds behave differently. */
+[hidden]{display:none !important}
 body{margin:0; background:var(--bg); color:var(--ink);
   font-family:'Archivo',system-ui,-apple-system,'Segoe UI',sans-serif;
   font-size:16px; line-height:1.45; -webkit-text-size-adjust:100%;
@@ -10542,6 +10548,23 @@ body.phone .toast{font-size:16px; padding:10px 15px; bottom:12px; max-width:94vw
 
 /* the buy window borrows the pause banner, so it needs to read as a different state */
 .pausebar.buying{background:var(--accent-soft); border-color:var(--accent); color:var(--accent)}
+.pausebar.setup{background:var(--surface-2); border-color:var(--go); color:var(--ink)}
+.pausebar.setup .num{color:var(--go); font-weight:700; letter-spacing:.04em}
+
+.handchip{background:var(--surface-2); border:1px solid var(--line); border-radius:999px;
+  padding:2px 9px; font-size:11px; font-weight:600; text-transform:uppercase;
+  letter-spacing:.06em; color:var(--ink-2)}
+.handchip b{font-family:'JetBrains Mono',monospace; font-size:13px; color:var(--ink); margin-left:4px}
+
+.setupbox{border:2px dashed var(--go); border-radius:8px; padding:14px; display:grid;
+  gap:9px; justify-items:center; text-align:center}
+.setupbox .setupn{display:flex; align-items:baseline; gap:7px}
+.setupbox .setupn b{font-family:'JetBrains Mono',monospace; font-size:40px; color:var(--go); line-height:1}
+.setupbox .setupn span{font-size:15px; color:var(--ink-2)}
+
+/* the draw readout is no longer tappable — drawing is a scan */
+.drawbtn.cold{opacity:.45}
+.drawbtn.cold .dsub{color:var(--alert)}
 
 .camnote{font-size:12.5px; line-height:1.45; color:var(--ink-2); margin:0}
 .camnote.bad{color:var(--alert)}
@@ -10588,6 +10611,7 @@ body.phone .toast{font-size:16px; padding:10px 15px; bottom:12px; max-width:94vw
   <span class="pt" id="pauseTitle">Paused</span>
   <span class="num" id="pauseCount"></span>
   <div class="hspacer"></div>
+  <button class="btn pri" id="startBtn" hidden>Start game</button>
   <button class="btn pri" id="resolveBtn" hidden>Attack resolved</button>
   <button class="btn" id="cancelBuyBtn" hidden>Cancel</button>
 </div>
@@ -10655,6 +10679,7 @@ body.phone .toast{font-size:16px; padding:10px 15px; bottom:12px; max-width:94vw
     <div class="sgroup">
       <h3>Draw timing</h3>
       <div class="frow"><label for="s_int">Free draw every <span class="tag">sec</span></label><input type="number" id="s_int" step="1"></div>
+      <div class="frow"><label for="s_open">Opening hand</label><input type="number" id="s_open" step="1"></div>
       <div class="frow"><label for="s_c6">Cost above 2/3 left</label><input type="number" id="s_c6" step="1"></div>
       <div class="frow"><label for="s_c4">Cost 1/3&ndash;2/3 left</label><input type="number" id="s_c4" step="1"></div>
       <div class="frow"><label for="s_c2">Cost below 1/3 left</label><input type="number" id="s_c2" step="1"></div>
@@ -10801,7 +10826,7 @@ function def(){ return {
   start:{wood:10, food:10, gold:5},
   hqHealth:20, drawInterval:10,
   costFar:6, costMid:4, costNear:2,
-  cooldown:4, shufflePause:10, freeze:5, target:30,
+  cooldown:4, shufflePause:10, freeze:5, target:30, openingHand:5,
 };}
 
 function newPlayer(cfg, name){
@@ -10809,7 +10834,7 @@ function newPlayer(cfg, name){
   for(const id in DB) if(DB[id].start) owned[id] = DB[id].start;
   for(const id in DB) if(DB[id].pers)  pers[id]  = DB[id].pers;   // your own stacks
   return {
-    name, owned, pers, board:[], cards:{},
+    name, owned, pers, board:[], cards:{}, hand:{},
     res:{wood:cfg.start.wood, food:cfg.start.food, gold:cfg.start.gold},
     incAdj:{wood:0, food:0, gold:0},
     earned:{wood:0, food:0, gold:0}, spent:{wood:0, food:0, gold:0},
@@ -10818,10 +10843,16 @@ function newPlayer(cfg, name){
   };
 }
 
+/* A game opens in 'setup': paused, with both hands empty. It cannot start until each
+   player has scanned their opening hand, because the play/draw distinction below rests
+   on the app knowing what is in hand. */
 function newGame(cfg){
-  return { cfg, clock:0, pausedTime:0, paused:false, pause:null, speed:1,
+  return { cfg, clock:0, pausedTime:0, paused:true, pause:null, speed:1, phase:'setup',
     players:[newPlayer(cfg,'Player 1'), newPlayer(cfg,'Player 2')], log:[] };
 }
+
+function handCount(p){ let n = 0; for(const k in (p.hand || {})) n++; return n; }
+function setupDone(){ return G.players.every(p => handCount(p) >= G.cfg.openingHand); }
 
 function hasFlag(p, flag){ return p.board.some(b => DB[b.id].flag === flag); }
 
@@ -10832,6 +10863,9 @@ function fixPlayer(p){
      start unowned, so this is the only record of who bought which copy — without it a
      scan of MSKIRM02 cannot say whose Skirmisher it is. */
   if(!p.cards) p.cards = {};
+  /* hand maps a printed code to its design, for the cards this player is holding RIGHT
+     NOW. It is the difference between a scan meaning "I drew this" and "I played this". */
+  if(!p.hand) p.hand = {};
   return p;
 }
 
@@ -11067,6 +11101,7 @@ function serialize(){
   return {
     rev: NET.rev + 1, at: Date.now(), by: NET.seat,
     cfg: JSON.parse(JSON.stringify(G.cfg)),
+    phase: G.phase || 'play',
     clock: G.clock, pausedTime: G.pausedTime, paused: !!G.paused,
     pause: G.pause ? {label:G.pause.label, t:G.pause.t ?? null, manual:!!G.pause.manual,
                       by:G.pause.by ?? null, buy:G.pause.buy ?? null} : null,
@@ -11095,6 +11130,7 @@ function applyDoc(raw, force){
   const d = cloneDoc(raw);
   if(!d) return;
   if(d.cfg){ Object.assign(cfg, d.cfg); G.cfg = cfg; syncCfgInputs(); saveCfg(); }
+  G.phase = d.phase || 'play';       // a state written before setup existed is mid-game
   G.clock = d.clock || 0; G.pausedTime = d.pausedTime || 0;
   G.paused = !!d.paused; G.pause = d.pause || null; G.speed = d.speed || 1;
   /* Firebase stores no empty containers and no nulls: an emptied board, an emptied
@@ -11102,7 +11138,7 @@ function applyDoc(raw, force){
      empty value. Object.assign skips absent keys, so without this the receiver would
      keep showing a building its owner had already lost. Reset the collections first,
      then let the snapshot fill in whatever it actually carries. */
-  const EMPTY = {board:[], owned:{}, pers:{}, cards:{}};
+  const EMPTY = {board:[], owned:{}, pers:{}, cards:{}, hand:{}};
   (d.players || []).forEach((sp, i) => {
     const t = G.players[i], keep = t.undo;
     for(const k in EMPTY) if(!(k in sp)) t[k] = Array.isArray(EMPTY[k]) ? [] : {};
@@ -11177,7 +11213,13 @@ function say(i, msg){ if(!msg) return; G.log.unshift({t:mmss(G.clock), w:msg, p:
 function sys(msg){ G.log.unshift({t:mmss(G.clock), w:msg, p:null}); if(G.log.length>120) G.log.pop(); renderLog(); }
 
 function hold(label, seconds, manual){ G.paused = true; G.pause = {label, t:seconds ?? null, manual:!!manual, by:NET.seat}; renderPause(); }
-function release(){ G.paused = false; G.pause = null; renderPause(); }
+/* Setup is a paused state that nothing may resume out of — closing a screen during
+   setup must not start the clock. */
+function release(){
+  G.pause = null;
+  G.paused = (G.phase === 'setup');
+  renderPause();
+}
 
 function costHTML(cost){
   const parts = RES.filter(r => cost[r]).map(r => `<span class="chip"><i class="c-${r}"></i>${cost[r]}</span>`);
@@ -11317,6 +11359,25 @@ function screenHTML(i){
         <button class="btn pri" data-act="docustom">Confirm</button></div>`;
   }
 
+  else if(s === 'hand'){
+    const entries = Object.keys(p.hand || {}).map(code => [code, p.hand[code]]);
+    h += `<div class="scrhead"><h3>Your hand — ${entries.length} card${entries.length === 1 ? '' : 's'}</h3>
+      <button class="btn sm" data-act="close">Close</button></div>
+      <p class="note">What the app believes you are holding. It only needs touching if a
+      scan was missed — tap a card to drop it from the list without playing it.</p>
+      <div class="cardlist">`;
+    if(entries.length){
+      for(const [code, id] of entries){
+        const c = DB[id] || {n:id};
+        h += `<button class="cbtn" data-act="unhand" data-code="${code}">
+          <span class="cn">${c.n}</span>
+          <span class="ci">${c.info || ''}</span>
+          <span class="qty num">${code}</span></button>`;
+      }
+    } else h += `<div class="empty">Nothing tracked yet.</div>`;
+    h += `</div>`;
+  }
+
   return h + `</div>`;
 }
 
@@ -11327,7 +11388,9 @@ function renderPanel(i){
   document.body.classList.toggle('screening', !!nav);
   const ro = netMode() && NET.seat !== i;          // opponent's panel on a linked device
 
-  let h = `<div class="phead"><span class="pdot"></span><h2>${p.name}${ro ? '' : (netMode() ? ' <span class="tag">you</span>' : '')}</h2><span class="meta" id="st${i}"></span></div>`;
+  let h = `<div class="phead"><span class="pdot"></span><h2>${p.name}${ro ? '' : (netMode() ? ' <span class="tag">you</span>' : '')}</h2>`
+    + (ro ? '' : `<button class="handchip" data-act="hand" title="What the app thinks you are holding">hand <b data-handn>${handCount(p)}</b></button>`)
+    + `<span class="meta" id="st${i}"></span></div>`;
 
   h += `<div class="res">` + RES.map(r =>
     `<div class="rtile">
@@ -11365,13 +11428,22 @@ function renderPanel(i){
 
   if(nav && nav.p === i){
     h += screenHTML(i);
+  } else if(G.phase === 'setup'){
+    h += `<div class="setupbox">
+        <div class="setupn"><b data-handn>${handCount(p)}</b><span>of ${G.cfg.openingHand}</span></div>
+        <p class="note" style="margin:0">Draw your opening hand one card at a time and scan
+        each one so the app knows what you are holding.</p>
+        ${handCount(p) ? `<button class="btn sm" data-act="hand">Fix a mis-scan</button>` : ''}
+      </div>`;
   } else {
-    h += `<button class="drawbtn" data-act="draw" data-drawbtn>
+    /* No longer a button. Drawing is a scan now, so this is a readout of when the next
+       free draw lands and what an early one costs. */
+    h += `<div class="drawbtn" data-drawbtn>
         <span class="dfill" data-drawfill></span>
         <span class="dmk" style="left:33.33%"></span><span class="dmk" style="left:66.66%"></span>
         <span class="dtxt">DRAW</span>
         <span class="dsub" data-drawcost></span>
-      </button>`;
+      </div>`;
     if(locked) h += `<div class="waitbar">${G.players[1-i].name} is playing &mdash; wait</div>`;
     else if(NET.on && NET.err) h += `<div class="waitbar">Link problem &mdash; open This device</div>`;
     h += `<div class="acts">
@@ -11455,6 +11527,22 @@ function handleAct(i, b){
   }
   if(a === 'close'){ closeNav(i); return; }
 
+  if(a === 'hand'){
+    if(nav) return;
+    nav = {p:i, mode:'play', screen:'hand', cat:null};
+    hold(`Checking hand — ${p.name}`, null, false);
+    renderBoth(); return;
+  }
+  if(a === 'unhand'){
+    const code = b.dataset.code, id = p.hand && p.hand[code];
+    if(id){
+      snap(p, 'hand fix');
+      delete p.hand[code];
+      say(i, `dropped ${(DB[id] || {n:code}).n} from the tracked hand`);
+    }
+    renderPanel(i); renderPause(); return;
+  }
+
   if(a === 'play'){
     const r = actPlay(G, i, b.dataset.id, {});
     if(!r) return;
@@ -11529,6 +11617,24 @@ function renderStats(){
 
 function renderPause(){
   const bar = document.getElementById('pausebar'), rb = document.getElementById('resolveBtn');
+  const sb = document.getElementById('startBtn'), cbx = document.getElementById('cancelBuyBtn');
+
+  if(G.phase === 'setup'){
+    const need = G.cfg.openingHand;
+    bar.hidden = false;
+    bar.classList.add('setup'); bar.classList.remove('buying');
+    document.getElementById('pauseTitle').textContent =
+      `Opening hands — draw ${need} cards each and scan them`;
+    document.getElementById('pauseCount').textContent =
+      G.players.map((p, i) => `P${i+1} ${handCount(p)}/${need}`).join('   ');
+    rb.hidden = true;
+    if(cbx) cbx.hidden = true;
+    if(sb) sb.hidden = !setupDone();
+    document.getElementById('pauseBtn').textContent = 'Setup';
+    return;
+  }
+  bar.classList.remove('setup');
+  if(sb) sb.hidden = true;
   if(!G.paused){ bar.hidden = true; document.getElementById('pauseBtn').textContent = 'Pause'; return; }
   bar.hidden = false;
   document.getElementById('pauseTitle').textContent = G.pause ? G.pause.label : 'Paused';
@@ -11567,12 +11673,16 @@ function tickRender(){
     const f = el.querySelector('[data-drawfill]'); if(f) f.style.width = (prog*100).toFixed(1) + '%';
     const c = drawCost(p, G.cfg);
     const dc = el.querySelector('[data-drawcost]');
-    if(dc) dc.textContent = c === 0 ? 'free now' : `${c} Food to draw early`;
+    if(dc) dc.textContent = p.frozen > 0 ? 'frozen'
+      : c === 0 ? 'free now — scan your card'
+      : (p.res.food >= c ? `${c} Food — scan your card` : `${c} Food — not enough`);
     const db = el.querySelector('[data-drawbtn]');
     if(db){
-      db.classList.toggle('free', c === 0);
-      db.disabled = p.frozen > 0 || (c > 0 && p.res.food < c);
+      db.classList.toggle('free', c === 0 && p.frozen <= 0);
+      db.classList.toggle('cold', p.frozen > 0 || (c > 0 && p.res.food < c));
     }
+    const hn = el.querySelector('[data-handn]');
+    if(hn) hn.textContent = handCount(p);
     const ub = el.querySelector('[data-undobtn]'); if(ub) ub.disabled = !p.undo.length;
 
     const pb = el.querySelector('[data-playbtn]');
@@ -11598,7 +11708,7 @@ function loop(now){
   if(dt > 0.5) dt = 0.5;
   const step = dt * G.speed;
   if(G.paused){
-    G.pausedTime += step;
+    if(G.phase !== 'setup') G.pausedTime += step;   // setup is not "time lost to pauses"
     if(G.pause && G.pause.t != null){
       G.pause.t -= step;
       if(G.pause.t <= 0){
@@ -11615,7 +11725,14 @@ function loop(now){
 function setSpeed(s){ G.speed = s; [1,2,4].forEach(n => document.getElementById('sp'+n).classList.toggle('on', n === s)); }
 [1,2,4].forEach(n => document.getElementById('sp'+n).onclick = () => { setSpeed(n); push(); });
 
+document.getElementById('startBtn').onclick = () => {
+  if(!setupDone()) return;
+  G.phase = 'play'; release();
+  sys('opening hands set — game started');
+  renderBoth(); renderStats(); push();
+};
 document.getElementById('pauseBtn').onclick = () => {
+  if(G.phase === 'setup'){ scanSay('Scan both opening hands first', true); return; }
   if(G.paused){ if(nav){ const i = nav.p; nav = null; renderPanel(i); } release(); sys('resumed'); }
   else { hold('Paused by hand', null, false); sys('paused'); }
   renderBoth(); push();
@@ -11780,6 +11897,7 @@ function onScan(raw){
     const i = c.owner === '1' ? 0 : c.owner === '2' ? 1 : -1;
     if(i < 0){ sndDenied(); scanSay('Not an HQ card', true); return; }
     if(netMode() && i !== NET.seat){ scanSay(`That is Player ${i+1}'s HQ`, true); return; }
+    if(G.phase === 'setup'){ sndDenied(); scanSay('Finish the opening hands first', true); return; }
     armBuy(i); return;
   }
 
@@ -11789,8 +11907,17 @@ function onScan(raw){
   const buying = buyOpen();
   let i = codeOwner(c);
   if(i < 0) i = buying;                       // ownerless card, bought by whoever opened the window
-  if(i < 0){ sndDenied(); scanSay(`Scan your HQ first to buy ${card.n}`, true); return; }
+  if(i < 0){
+    sndDenied();
+    /* during setup there is no buy window to point them at — the real problem is that
+       this card is not in anybody's starting deck */
+    scanSay(G.phase === 'setup' ? `${card.n} is not in the starting deck`
+                                : `Scan your HQ first to buy ${card.n}`, true);
+    return;
+  }
   if(netMode() && i !== NET.seat) return;     // the other tablet owns this scan
+
+  if(G.phase === 'setup'){ doSetupDraw(i, c); return; }
 
   if(buying >= 0){
     if(buying !== i){ sndDenied(); scanSay(`That card belongs to Player ${i+1}`, true); return; }
@@ -11798,7 +11925,58 @@ function onScan(raw){
     if(G.players[i].cards[c.code]){ sndDenied(); scanSay(`That ${card.n} is already yours`, true); return; }
     doScanBuy(i, c); return;
   }
-  doScanPlay(i, c);
+
+  /* The card's own history decides which action this is. Scan one the app has not handed
+     you and you are drawing it off your deck; scan one it has and you are playing it.
+     Unambiguous only because every physical card carries its own code. */
+  if(G.players[i].hand && G.players[i].hand[c.code]) doScanPlay(i, c);
+  else doScanDraw(i, c);
+}
+
+/* Starter cards are in the deck from the first shuffle. Everything else — market,
+   worker stack, and your own personal stacks — has to be bought before it can be drawn,
+   and doScanBuy is what records that. */
+function ownsCard(i, c){
+  const p = G.players[i], card = DB[c.id];
+  if(p.cards && p.cards[c.code]) return true;
+  return !!(card && card.start && (c.owner === '1' || c.owner === '2'));
+}
+
+function doSetupDraw(i, c){
+  const p = G.players[i], card = DB[c.id], need = G.cfg.openingHand;
+  if(!ownsCard(i, c)){ sndDenied(); scanSay(`${card.n} is not in the starting deck`, true); return; }
+  if(p.hand[c.code]){ sndDenied(); scanSay('Already scanned that card', true); return; }
+  if(handCount(p) >= need){ sndDenied(); scanSay(`${p.name} already has ${need}`, true); return; }
+  p.hand[c.code] = c.id;
+  sndDraw();
+  const n = handCount(p);
+  scanSay(setupDone() ? 'Both hands ready — tap Start' : `${p.name} · ${n} of ${need}`);
+  if(setupDone()) sndBuy();
+  renderBoth(); renderPause(); push();
+}
+
+function doScanDraw(i, c){
+  const p = G.players[i], card = DB[c.id];
+  if(!ownsCard(i, c)){
+    sndDenied(); scanSay(`${card.n} is not in your deck — scan your HQ to buy it`, true); return;
+  }
+  if(nav){ sndDenied(); scanSay('Finish the open menu first', true); return; }
+  if(G.paused){ sndDenied(); scanSay('Game is paused', true); return; }
+  if(p.frozen > 0){ sndDenied(); scanSay(`Frozen — ${p.frozen.toFixed(1)}s`, true); return; }
+  const cost = drawCost(p, G.cfg);
+  const r = actDraw(G, i);
+  if(!r){
+    sndDenied();
+    scanSay(cost > 0 ? `Drawing early costs ${cost} Food` : 'Cannot draw right now', true);
+    return;
+  }
+  p.hand[c.code] = c.id;
+  sndDraw();
+  /* The log is shared, and so is the screen on a single tablet, so a drawn card is never
+     named anywhere — you are holding it, and the app saying it aloud only leaks it. */
+  say(i, r);
+  scanSay(`Drew — hand ${handCount(p)}`);
+  renderBoth(); renderStats(); push();
 }
 
 function doScanBuy(i, c){
@@ -11828,6 +12006,7 @@ function doScanPlay(i, c){
 
   const r = actPlay(G, i, c.id, {});
   if(!r){ sndDenied(); return; }
+  delete p.hand[c.code];                 // it is on the table now, not in hand
   sndScan(); say(i, r.log); scanSay(r.log);
   if(r.follow){ nav = {p:i, mode:'play', screen:r.follow, cat:null};
                 hold(`Playing a card — ${p.name}`, null, false); }
@@ -12150,6 +12329,7 @@ const FIELDS = {
   s_hp:['hqHealth'], s_int:['drawInterval'],
   s_c6:['costFar'], s_c4:['costMid'], s_c2:['costNear'],
   s_cd:['cooldown'], s_shuf:['shufflePause'], s_frz:['freeze'], s_tgt:['target'],
+  s_open:['openingHand'],
 };
 function syncCfgInputs(){
   for(const id in FIELDS){
