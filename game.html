@@ -10777,9 +10777,7 @@ const DB = {
   /* Each worker costs one Wood more than the last, so a wide economy has a rising price
      rather than a flat one. buyStep drives that. */
   worker:{n:'Worker', cat:'unit', sub:'worker', pers:10, buy:3, buyStep:1, buyR:'wood', fung:1, cost:{food:5}, info:'staff a building · +1 Wood each', act:'worker'},
-  /* You open able to MOVE but not to attack: one Move starts in hand, the other two of
-     the three printed copies sit in your supply. */
-  move:{n:'Move', cat:'ability', start:1, pers:2, buy:3, buyR:'wood', cost:{food:3}, info:'move a unit', pauseFor:3},
+  move:{n:'Move', cat:'ability', pers:3, buy:3, buyR:'wood', cost:{food:3}, info:'move a unit', pauseFor:3},
   attack:{n:'Attack', cat:'ability', pers:3, buy:3, buyR:'wood', cost:{food:3}, info:'attack with a unit', act:'attack'},
   /* Retired by Refresh B. Kept in the table ONLY so a printed copy still resolves when
      scanned and can say so, instead of reading as an unknown card. */
@@ -10845,7 +10843,14 @@ const SUBGRP = {
   building:[[null,'Buildings']],
 };
 
+/* Bump this whenever the default rules change. A device that has played before has a
+   config in localStorage, and Object.assign(def(), saved) let that old config win — so a
+   player who started on Version A kept Version A's starting resources for ever, silently.
+   The version tag is what lets a stale config be recognised and dropped. */
+const RULES_VER = 'B2';
+
 function def(){ return {
+  ver:RULES_VER,
   baseIncome:{wood:5, food:5, gold:2},
   /* 30/20/8 comes out of the pacing sim: it halves the time to a fielded unit without
      making the opening trivial. 45/25/10 armed you by minute two and skipped the
@@ -11197,7 +11202,15 @@ function actHp(G, i, d){
    ============================================================ */
 
 let cfg = def();
-try{ const raw = localStorage.getItem('wgf-cfg3'); if(raw) cfg = Object.assign(def(), JSON.parse(raw)); }catch(e){}
+let cfgStale = false;
+try{
+  const raw = localStorage.getItem('wgf-cfg3');
+  if(raw){
+    const saved = JSON.parse(raw);
+    if(saved && saved.ver === RULES_VER) cfg = Object.assign(def(), saved);
+    else cfgStale = true;        // settings from an older rule set: drop them
+  }
+}catch(e){}
 
 let G = newGame(cfg);
 let flipped = false;
@@ -11300,7 +11313,13 @@ function applyDoc(raw, force){
   if(!force && raw.by === NET.seat) return;        // my own write echoing back
   const d = cloneDoc(raw);
   if(!d) return;
-  if(d.cfg){ Object.assign(cfg, d.cfg); G.cfg = cfg; syncCfgInputs(); saveCfg(); }
+  /* A shared game written by an older build carries that build's settings. Taking them
+     would quietly roll this device back, so only matching rule sets are accepted. */
+  if(d.cfg && d.cfg.ver === RULES_VER){ Object.assign(cfg, d.cfg); G.cfg = cfg; syncCfgInputs(); saveCfg(); }
+  if(d.cfg && d.cfg.ver !== RULES_VER && !G.__warnedVer){
+    G.__warnedVer = 1;
+    scanSay('That shared game was started on older rules — tap New', true);
+  }
   G.phase = d.phase || 'play';       // a state written before setup existed is mid-game
   G.clock = d.clock || 0; G.pausedTime = d.pausedTime || 0;
   G.paused = !!d.paused; G.pause = d.pause || null; G.speed = d.speed || 1;
@@ -11408,11 +11427,13 @@ function screenHTML(i){
      the table, so mixing them into one list only ever caused mis-taps. */
   if(s === 'src'){
     const left = Object.keys(DB).filter(id => DB[id].pers).reduce((n,id) => n + (p.pers[id]||0), 0);
+    const rc2 = G.cfg.marketRefresh;
     h += `<div class="scrhead"><h3>Buy a card</h3>
       <button class="btn sm" data-act="close">Cancel</button></div>
       <div class="crumb">Where from?</div><div class="cats">
       <button class="btn big" data-act="src" data-s="supply">Buy from Supply<br><span class="srcsub">${left} card${left===1?'':'s'} left in your stacks</span></button>
       <button class="btn big" data-act="src" data-s="mkt">Buy from Market<br><span class="srcsub">the shared row</span></button>
+      <button class="btn" data-act="mktrefresh" ${p.res.gold >= rc2 ? '' : 'disabled'}>Refresh the market &middot; ${rc2}g<br><span class="srcsub">trash all 5, deal 5 new</span></button>
       </div>`;
   }
 
@@ -11437,6 +11458,7 @@ function screenHTML(i){
       <div class="crumb">What kind of card?</div><div class="cats">`;
     for(const c in CATS) h += `<button class="btn big" data-act="cat" data-c="${c}">${CATS[c]}</button>`;
     if(nav.mode === 'play') h += `<button class="btn" data-act="cat" data-c="custom">Something else&hellip;</button>`;
+    if(nav.mode === 'buy') h += `<button class="btn" data-act="mktrefresh" ${p.res.gold >= G.cfg.marketRefresh ? '' : 'disabled'}>Refresh the market &middot; ${G.cfg.marketRefresh}g</button>`;
     h += `</div>`;
   }
 
@@ -11696,6 +11718,12 @@ function handleAct(i, b){
     renderPanel(i); return;
   }
   if(a === 'src'){ nav.screen = b.dataset.s === 'supply' ? 'supply' : 'cat'; renderPanel(i); return; }
+  if(a === 'mktrefresh'){
+    const r = actRefreshMarket(G, i);
+    if(!r){ sndDenied(); scanSay(`Need ${G.cfg.marketRefresh} Gold to refresh`, true); return; }
+    say(i, r); sndBuy(); scanSay(r);
+    renderPanel(i); renderStats(); return;
+  }
   if(a === 'back'){
     if(nav.screen === 'list' || nav.screen === 'custom') nav.screen = 'cat';
     else if(nav.mode === 'buy') nav.screen = 'src';      // supply list or market categories
@@ -12601,6 +12629,7 @@ try{ window.claude?.hot?.snapshot(() => ({G, flipped})); }catch(e){}
 function boot(data){
   if(data && data.G){ G = data.G; G.cfg = cfg; flipped = !!data.flipped; G.players.forEach(fixPlayer); }
   loadLink(); fillLinkInputs();
+  if(cfgStale){ saveCfg(); sys('rules updated — settings reset to the new defaults'); }
   setSpeed(G.speed || 1); applyFlip(); applyScale(); applyLayout(); netStatus(NET.msg);
   if(!G.log.length) sys('game started');
   requestAnimationFrame(loop);
