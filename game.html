@@ -10555,6 +10555,7 @@ body.phone .toast{font-size:16px; padding:10px 15px; bottom:12px; max-width:94vw
   padding:2px 9px; font-size:11px; font-weight:600; text-transform:uppercase;
   letter-spacing:.06em; color:var(--ink-2)}
 .handchip b{font-family:'JetBrains Mono',monospace; font-size:13px; color:var(--ink); margin-left:4px}
+.handchip.dim{border-style:dashed; opacity:.75}
 
 .setupbox{border:2px dashed var(--go); border-radius:8px; padding:14px; display:grid;
   gap:9px; justify-items:center; text-align:center}
@@ -10612,6 +10613,7 @@ body.phone .toast{font-size:16px; padding:10px 15px; bottom:12px; max-width:94vw
   <span class="num" id="pauseCount"></span>
   <div class="hspacer"></div>
   <button class="btn pri" id="startBtn" hidden>Start game</button>
+  <button class="btn" id="refreshBtn" hidden>Refresh market</button>
   <button class="btn pri" id="resolveBtn" hidden>Attack resolved</button>
   <button class="btn" id="cancelBuyBtn" hidden>Cancel</button>
 </div>
@@ -10677,17 +10679,17 @@ body.phone .toast{font-size:16px; padding:10px 15px; bottom:12px; max-width:94vw
       <p class="note">Applies on reset.</p>
     </div>
     <div class="sgroup">
-      <h3>Draw timing</h3>
-      <div class="frow"><label for="s_int">Free draw every <span class="tag">sec</span></label><input type="number" id="s_int" step="1"></div>
-      <div class="frow"><label for="s_open">Opening hand</label><input type="number" id="s_open" step="1"></div>
-      <div class="frow"><label for="s_c6">Cost above 2/3 left</label><input type="number" id="s_c6" step="1"></div>
-      <div class="frow"><label for="s_c4">Cost 1/3&ndash;2/3 left</label><input type="number" id="s_c4" step="1"></div>
+      <h3>Recall</h3>
+      <div class="frow"><label for="s_int">Recall timer <span class="tag">sec</span></label><input type="number" id="s_int" step="1"></div>
+      <div class="frow"><label for="s_c0">Cost at 0 <span class="tag">Food</span></label><input type="number" id="s_c0" step="1"></div>
       <div class="frow"><label for="s_c2">Cost below 1/3 left</label><input type="number" id="s_c2" step="1"></div>
+      <div class="frow"><label for="s_c4">Cost 1/3&ndash;2/3 left</label><input type="number" id="s_c4" step="1"></div>
+      <div class="frow"><label for="s_c6">Cost above 2/3 left</label><input type="number" id="s_c6" step="1"></div>
     </div>
     <div class="sgroup">
       <h3>Pacing</h3>
       <div class="frow"><label for="s_cd">Play cooldown <span class="tag">sec</span></label><input type="number" id="s_cd" step="0.5"></div>
-      <div class="frow"><label for="s_shuf">Shuffle pause <span class="tag">sec</span></label><input type="number" id="s_shuf" step="1"></div>
+      <div class="frow"><label for="s_mkt">Market refresh <span class="tag">Gold</span></label><input type="number" id="s_mkt" step="1"></div>
       <div class="frow"><label for="s_frz">Freeze duration <span class="tag">sec</span></label><input type="number" id="s_frz" step="1"></div>
       <div class="frow"><label for="s_tgt">Target length <span class="tag">min</span></label><input type="number" id="s_tgt" step="1"></div>
     </div>
@@ -10767,22 +10769,30 @@ const DB = {
   lumber:{n:'Lumber Camp', cat:'building', cost:{wood:10}, income:{wood:5}, cap:3, per:{wood:3}, hp:5, start:1},
   farm:{n:'Farm', cat:'building', cost:{wood:5,food:5}, income:{food:5}, cap:3, per:{food:3}, hp:5, start:1},
   mine:{n:'Gold Mine', cat:'building', cost:{wood:10,gold:3}, income:{gold:2}, cap:3, per:{gold:1}, hp:5, start:1},
-  /* starter units */
-  spearman:{n:'Spearman', cat:'unit', sub:'military', cost:{food:5}, start:1, info:'1 wht 1 blu · hp 5'},
-  archer:{n:'Archer', cat:'unit', sub:'military', cost:{food:7}, start:1, info:'2 wht · rng 2 · hp 3'},
-  worker:{n:'Worker', cat:'unit', sub:'worker', cost:{food:5}, start:3, buy:3, info:'staff a building · market stack', act:'worker'},
-  /* starter abilities */
-  move:{n:'Move', cat:'ability', cost:{food:3}, start:1, info:'move a unit', pauseFor:3},
-  attack:{n:'Attack', cat:'ability', cost:{food:3}, start:1, info:'attack with a unit', act:'attack'},
-  coin:{n:'Coin', cat:'ability', sub:'filler', cost:{}, gain:{gold:1}, start:1, info:'+1 Gold'},
-  fwood:{n:'Wood', cat:'ability', sub:'filler', cost:{}, gain:{wood:1}, start:2, info:'+1 Wood'},
-  ffood:{n:'Food', cat:'ability', sub:'filler', cost:{}, gain:{food:1}, start:2, info:'+1 Food'},
-  /* personal market — each player has their own stack of 3, always available */
-  wild:{n:'Wild', cat:'ability', pers:3, buy:10, buyR:'wood', cost:{food:4}, info:'move OR attack', pauseFor:3},
+  /* ---- personal supply: everything below is bought with Wood, always in stock ----
+     Refresh B moved Spearman, Archer, Worker, Move and Attack out of the starting deck
+     and into here. Nothing but the three workstations above starts in hand. */
+  spearman:{n:'Spearman', cat:'unit', sub:'military', pers:3, buy:3, buyR:'wood', cost:{food:5}, info:'1 wht 1 blu · hp 5'},
+  archer:{n:'Archer', cat:'unit', sub:'military', pers:3, buy:4, buyR:'wood', cost:{food:7}, info:'2 wht · rng 2 · hp 3'},
+  /* Each worker costs one Wood more than the last, so a wide economy has a rising price
+     rather than a flat one. buyStep drives that. */
+  worker:{n:'Worker', cat:'unit', sub:'worker', pers:10, buy:3, buyStep:1, buyR:'wood', fung:1, cost:{food:5}, info:'staff a building · +1 Wood each', act:'worker'},
+  /* You open able to MOVE but not to attack: one Move starts in hand, the other two of
+     the three printed copies sit in your supply. */
+  move:{n:'Move', cat:'ability', start:1, pers:2, buy:3, buyR:'wood', cost:{food:3}, info:'move a unit', pauseFor:3},
+  attack:{n:'Attack', cat:'ability', pers:3, buy:3, buyR:'wood', cost:{food:3}, info:'attack with a unit', act:'attack'},
+  /* Retired by Refresh B. Kept in the table ONLY so a printed copy still resolves when
+     scanned and can say so, instead of reading as an unknown card. */
+  coin:{n:'Coin', cat:'ability', sub:'filler', cost:{}, gain:{gold:1}, retired:1, info:'+1 Gold'},
+  fwood:{n:'Wood', cat:'ability', sub:'filler', cost:{}, gain:{wood:1}, retired:1, info:'+1 Wood'},
+  ffood:{n:'Food', cat:'ability', sub:'filler', cost:{}, gain:{food:1}, retired:1, info:'+1 Food'},
+  /* the rest of the personal supply */
+
   droad:{n:'Dirt Road', cat:'building', pers:3, buy:6, buyR:'wood', cost:{wood:3}, hp:3, info:'extends network · hp 3'},
   maa:{n:'Men at Arms', cat:'unit', sub:'military', pers:3, buy:10, buyR:'wood', cost:{food:8,wood:2}, info:'2 wht · hp 5 · arm 1'},
   gate:{n:'Gate', cat:'building', pers:3, buy:12, buyR:'wood', cost:{wood:10}, hp:7, info:'blocks a path · hp 7'},
   /* market — abilities */
+  wild:{n:'Wild', cat:'ability', rar:'C', buy:5, cost:{food:4}, info:'move OR attack', pauseFor:3},
   charge:{n:'Charge', cat:'ability', rar:'C', buy:7, cost:{food:5}, info:'move AND attack', act:'attack'},
   mmove:{n:'Multi Move', cat:'ability', rar:'C', buy:7, cost:{food:4}, info:'move up to 2', pauseFor:3},
   volley:{n:'Volley', cat:'ability', rar:'C', buy:6, cost:{food:5}, info:'2 units, one target', act:'attack'},
@@ -10814,6 +10824,20 @@ const DB = {
   bearer:{n:'Standard Bearer', cat:'unit', sub:'support', rar:'R', buy:11, cost:{food:10,wood:3}, info:'passive: +1 wht nearby'},
 };
 
+const ABBR = {
+  hq:'HQ---', lumber:'LUMBR', farm:'FARM-', mine:'MINE-', spearman:'SPEAR', archer:'ARCHR',
+  worker:'WORKR', move:'MOVE-', attack:'ATTCK', coin:'COIN-', fwood:'WOOD-', ffood:'FOOD-',
+  wild:'WILD-', mmove:'MMOVE', volley:'VOLLY', freeze:'FREEZ', famine:'FAMIN', reclaim:'RECLM',
+  unrel:'UNREL', sabotage:'SABOT', gate:'GATE-', tower:'TOWER', quarry:'QUARY', granary:'GRANY',
+  mint:'MINT-', barracks:'BARRK', citadel:'CITDL', skirm:'SKIRM', xbow:'XBOW-', pike:'PIKE-',
+  ram:'RAM--', knight:'KNGHT', treb:'TREB-', sapper:'SAPPR', champ:'CHAMP', medic:'MEDIC',
+  eng:'ENGNR', bearer:'BEARR',
+  droad:'DROAD', maa:'MENAT', charge:'CHARG', proad:'PROAD', sgate:'SGATE',
+};
+/* one physical card per copy: owner(1) + design(5) + copy(2) */
+const BYCODE = {}; for(const k in ABBR) BYCODE[ABBR[k]] = k;
+function codeFor(id, seat, copy){ return String(seat + 1) + ABBR[id] + String(copy || 1).padStart(2, '0'); }
+
 const CATS = {building:'Buildings', unit:'Units', ability:'Abilities'};
 const SUBGRP = {
   unit:    [['military','Military'], ['support','Support'], ['worker','Workers']],
@@ -10823,23 +10847,35 @@ const SUBGRP = {
 
 function def(){ return {
   baseIncome:{wood:5, food:5, gold:2},
-  start:{wood:10, food:10, gold:5},
-  hqHealth:20, drawInterval:10,
-  costFar:6, costMid:4, costNear:2,
-  cooldown:4, shufflePause:10, freeze:5, target:30, openingHand:5,
+  /* 30/20/8 comes out of the pacing sim: it halves the time to a fielded unit without
+     making the opening trivial. 45/25/10 armed you by minute two and skipped the
+     build-up phase entirely. */
+  start:{wood:30, food:10, gold:3},
+  hqHealth:20,
+  /* Recall is never free. The FLOOR is the one number that matters — the early tiers are
+     paid about once a game whatever they cost, because your hand rarely empties. */
+  recallInterval:20, recallFloor:2, recallNear:4, recallMid:6, recallFar:8,
+  marketRefresh:4,
+  cooldown:1, freeze:5, target:30,
 };}
 
-function newPlayer(cfg, name){
-  const owned = {}, pers = {};
-  for(const id in DB) if(DB[id].start) owned[id] = DB[id].start;
+function newPlayer(cfg, name, seat){
+  const owned = {}, pers = {}, hand = {};
+  /* Refresh B: you start holding your whole hand, and it is exactly the three
+     workstations. Nothing to draw, nothing to scan — the app already knows. */
+  for(const id in DB) if(DB[id].start){
+    owned[id] = DB[id].start;
+    for(let k = 1; k <= DB[id].start; k++) hand[codeFor(id, seat, k)] = id;
+  }
   for(const id in DB) if(DB[id].pers)  pers[id]  = DB[id].pers;   // your own stacks
   return {
-    name, owned, pers, board:[], cards:{}, hand:{}, units:[],
+    name, owned, pers, board:[], cards:{}, hand, discard:{}, units:[],
     res:{wood:cfg.start.wood, food:cfg.start.food, gold:cfg.start.gold},
     incAdj:{wood:0, food:0, gold:0},
     earned:{wood:0, food:0, gold:0}, spent:{wood:0, food:0, gold:0},
-    hp:cfg.hqHealth, drawT:cfg.drawInterval, cd:0, frozen:0,
-    plays:0, buys:0, draws:0, exiled:0, foodOnDraws:0, goldOnBuys:0, woodOnBuys:0, undo:[],
+    hp:cfg.hqHealth, recallT:cfg.recallInterval, cd:0, frozen:0,
+    plays:0, buys:0, recalls:0, exiled:0, foodOnRecall:0, goldOnBuys:0, woodOnBuys:0,
+    goldOnRefresh:0, undo:[],
   };
 }
 
@@ -10848,11 +10884,19 @@ function newPlayer(cfg, name){
    on the app knowing what is in hand. */
 function newGame(cfg){
   return { cfg, clock:0, pausedTime:0, paused:true, pause:null, speed:1, phase:'setup',
-    players:[newPlayer(cfg,'Player 1'), newPlayer(cfg,'Player 2')], log:[] };
+    players:[newPlayer(cfg,'Player 1',0), newPlayer(cfg,'Player 2',1)], log:[] };
 }
 
 function handCount(p){ let n = 0; for(const k in (p.hand || {})) n++; return n; }
-function setupDone(){ return G.players.every(p => handCount(p) >= G.cfg.openingHand); }
+/* which physical copies of a design are in hand right now */
+function handHas(p, id){
+  const out = [];
+  for(const code in (p.hand || {})) if(p.hand[code] === id) out.push(code);
+  return out;
+}
+/* Nothing to scan any more — the opening hand is known — so setup exists only so both
+   players can look up before a real-time clock starts running. */
+function setupDone(){ return true; }
 
 function hasFlag(p, flag){ return p.board.some(b => DB[b.id].flag === flag); }
 
@@ -10866,6 +10910,9 @@ function fixPlayer(p){
   /* hand maps a printed code to its design, for the cards this player is holding RIGHT
      NOW. It is the difference between a scan meaning "I drew this" and "I played this". */
   if(!p.hand) p.hand = {};
+  /* discard is the other half of the recall loop: everything bought, and every action
+     already spent. Keyed by printed code so recall hands back the exact cards. */
+  if(!p.discard) p.discard = {};
   /* units holds what is DEPLOYED on the table, so an attack can take a named one off it.
      Buildings live in board; workers live as codes on the building they staff. */
   if(!Array.isArray(p.units)) p.units = [];
@@ -10895,12 +10942,17 @@ function effCost(p, id){
 
 function afford(p, cost){ return RES.every(r => !cost[r] || p.res[r] >= cost[r] - 1e-9); }
 
-function drawCost(p, cfg){
-  const left = 1 - Math.min(1, p.drawT / cfg.drawInterval);
-  if(left <= 0) return 0;
-  if(left > 2/3) return cfg.costFar;
-  if(left > 1/3) return cfg.costMid;
-  return cfg.costNear;
+function discardCount(p){ let n = 0; for(const k in (p.discard || {})) n++; return n; }
+
+/* Never zero. The floor is what you pay once the timer has run out; the three tiers
+   above it are the impatience premium. */
+function recallCost(p, cfg){
+  if(!p.recalls) return 0;              // the first one of the game is on the house
+  const left = Math.max(0, p.recallT) / cfg.recallInterval;
+  if(left <= 0)     return cfg.recallFloor;
+  if(left > 2/3)    return cfg.recallFar;
+  if(left > 1/3)    return cfg.recallMid;
+  return cfg.recallNear;
 }
 
 function advance(G, dt){
@@ -10911,7 +10963,7 @@ function advance(G, dt){
       const inc = income(p, G.cfg);
       for(const r of RES){ const g = inc[r] * dt / 60; p.res[r] += g; p.earned[r] += g; }
     }
-    p.drawT = Math.min(G.cfg.drawInterval, p.drawT + dt);
+    p.recallT -= dt;                     // runs negative; the cost floors out at zero
     p.cd = Math.max(0, p.cd - dt);
   }
 }
@@ -10927,15 +10979,32 @@ function undoLast(p){
   return e.label;
 }
 
-function actDraw(G, i){
+function actRecall(G, i){
   const p = G.players[i];
   if(p.frozen > 0) return null;
-  const c = drawCost(p, G.cfg);
-  if(c > 0 && p.res.food < c) return null;
-  snap(p, 'draw');
-  if(c > 0){ p.res.food -= c; p.spent.food += c; p.foodOnDraws += c; }
-  p.drawT = 0; p.draws++;
-  return c > 0 ? `drew early for ${c} Food` : 'drew a card';
+  const n = discardCount(p);
+  if(!n) return null;
+  const c = recallCost(p, G.cfg);
+  if(p.res.food < c) return null;
+  snap(p, 'recall');
+  if(c){ p.res.food -= c; p.spent.food += c; p.foodOnRecall += c; }
+  for(const code in p.discard) p.hand[code] = p.discard[code];
+  p.discard = {};
+  const early = p.recallT > 0, first = !p.recalls;
+  p.recallT = G.cfg.recallInterval; p.recalls++;
+  return `recalled ${n} card${n === 1 ? '' : 's'} ` +
+         (first ? '— first one free' : `for ${c} Food${early ? ' (early)' : ''}`);
+}
+
+/* The market row is five face-up cards on the table, not something the app models — so
+   this charges the fee, says so, and lets the players deal the new row themselves. That
+   keeps the app and the table from ever disagreeing about what is on offer. */
+function actRefreshMarket(G, i){
+  const p = G.players[i], c = G.cfg.marketRefresh;
+  if(p.res.gold < c) return null;
+  snap(p, 'market refresh');
+  p.res.gold -= c; p.spent.gold += c; p.goldOnRefresh += c;
+  return `refreshed the market for ${c} Gold — trash all 5 and deal 5 new`;
 }
 
 /* returns {log, follow} — follow is a sub-screen the UI must show next */
@@ -10954,7 +11023,11 @@ function actPlay(G, i, id, opts){
   /* opts.code is the printed code of the physical card being played. Recording it is
      what lets a later scan say "this exact Lumber Camp", not "a Lumber Camp". */
   const code = (opts && opts.code) || null;
+  /* Buildings and units leave your hand for good — they are on the table now. Actions
+     come back round through the discard, which is what makes owning a second Attack
+     literally double how often you can attack. */
   if(c.cat === 'building'){ p.board.push({id, code, workers:0, staff:[]}); return {log:`built ${c.n} (${cs})`}; }
+  if(code && c.cat !== 'building' && c.cat !== 'unit') p.discard[code] = id;
   if(c.gain){ RES.forEach(r => { if(c.gain[r]) p.res[r] += c.gain[r]; }); return {log:`cashed ${c.n}`}; }
   if(c.act === 'worker'){ return {log:`played Worker (${cs})`, follow:'worker'}; }
   if(c.act === 'reclaim'){ return {log:`played Reclaim (${cs})`, follow:'reclaim'}; }
@@ -11024,17 +11097,51 @@ function actLoseWorker(G, i, bIdx, sIdx){
 }
 
 function buyRes(c){ return c.buyR || 'gold'; }        // personal stacks are bought with Wood
-function actBuy(G, i, id){
-  const p = G.players[i], c = DB[id], r = buyRes(c);
-  if(!c.buy || p.res[r] < c.buy) return null;
+
+/* Most cards have a flat price. A card with buyStep gets dearer with every copy you take
+   off your own stack — the depth already spent is the multiplier. */
+function buyCost(p, id){
+  const c = DB[id];
+  if(!c.buyStep || !c.pers) return c.buy;
+  const taken = c.pers - (p.pers[id] || 0);
+  return c.buy + c.buyStep * taken;
+}
+
+/* A tapped buy knows WHAT was bought but not WHICH physical card, because the copy comes
+   off a stack rather than through the camera. Without a stand-in the purchase would raise
+   your card count and then exist nowhere — unrecallable, unplayable. So it goes into the
+   discard under a placeholder key, and the first scan of a real copy of that design takes
+   the placeholder's place. Self-healing, and it covers a missed scan just as well. */
+let phSeq = 0;
+function placeholder(id){ return '?' + id + '-' + (++phSeq); }
+function isPlaceholder(code){ return code.charAt(0) === '?'; }
+
+/* A worker is a worker. The twenty printed copies carry no owner and are not worth
+   tracking individually, so they are never stamped to a specific card — any copy of a
+   fungible design answers for any other. */
+function fungible(id){ return !!(DB[id] && DB[id].fung); }
+function anyOfDesign(pile, id){ for(const k in pile) if(pile[k] === id) return k; return null; }
+
+function claimPlaceholder(p, id, code){
+  for(const k in p.hand)    if(isPlaceholder(k) && p.hand[k] === id){
+    delete p.hand[k]; p.hand[code] = id; p.cards[code] = 1; return 'hand'; }
+  for(const k in p.discard) if(isPlaceholder(k) && p.discard[k] === id){
+    delete p.discard[k]; p.discard[code] = id; p.cards[code] = 1; return 'discard'; }
+  return null;
+}
+function actBuy(G, i, id, opts){
+  const p = G.players[i], c = DB[id], r = buyRes(c), price = buyCost(p, id);
+  if(!c.buy || p.res[r] < price) return null;
   if(c.pers && !(p.pers[id] > 0)) return null;          // your stack is empty
   snap(p, 'buy ' + c.n);
-  p.res[r] -= c.buy; p.spent[r] += c.buy; p.buys++;
-  if(r === 'gold') p.goldOnBuys += c.buy; else p.woodOnBuys += c.buy;
-  p.owned[id] = (p.owned[id] || 0) + 1;
+  p.res[r] -= price; p.spent[r] += price; p.buys++;
+  if(r === 'gold') p.goldOnBuys += price; else p.woodOnBuys += price;
+  p.owned[id] = (p.owned[id] || 0) + 1;   // owned is the census of cards you possess
+  if(opts && opts.code && !fungible(id)){ p.cards[opts.code] = 1; p.discard[opts.code] = id; }
+  else p.discard[placeholder(id)] = id;   // tapped, or fungible: any copy will answer
   const R = r.charAt(0).toUpperCase() + r.slice(1);
-  if(c.pers){ p.pers[id]--; return `bought ${c.n} from your stack for ${c.buy} ${R} (${p.pers[id]} left)`; }
-  return `bought ${c.n} for ${c.buy} ${R}`;
+  if(c.pers){ p.pers[id]--; return `bought ${c.n} from your stack for ${price} ${R} (${p.pers[id]} left)`; }
+  return `bought ${c.n} for ${price} ${R}`;
 }
 
 function actLoseBuilding(G, i, bIdx){
@@ -11202,7 +11309,7 @@ function applyDoc(raw, force){
      empty value. Object.assign skips absent keys, so without this the receiver would
      keep showing a building its owner had already lost. Reset the collections first,
      then let the snapshot fill in whatever it actually carries. */
-  const EMPTY = {board:[], owned:{}, pers:{}, cards:{}, hand:{}, units:[]};
+  const EMPTY = {board:[], owned:{}, pers:{}, cards:{}, hand:{}, discard:{}, units:[]};
   (d.players || []).forEach((sp, i) => {
     const t = G.players[i], keep = t.undo;
     for(const k in EMPTY) if(!(k in sp)) t[k] = Array.isArray(EMPTY[k]) ? [] : {};
@@ -11313,13 +11420,13 @@ function screenHTML(i){
     h += `<div class="scrhead"><h3>Your supply</h3>
       <button class="btn sm" data-act="back">Back</button></div><div class="cardlist">`;
     for(const id of Object.keys(DB).filter(x => DB[x].pers)){
-      const c = DB[id], left = p.pers[id] || 0, br = buyRes(c);
-      const ok = left > 0 && p.res[br] >= c.buy;
+      const c = DB[id], left = p.pers[id] || 0, br = buyRes(c), price = buyCost(p, id);
+      const ok = left > 0 && p.res[br] >= price;
       h += `<button class="cbtn own" data-act="buy" data-id="${id}" ${ok?'':'disabled'}>
         <span class="cn">${c.n}</span>
         <span class="ci">${c.info || ''}</span>
         <span class="qty">${left ? left + ' left' : 'out'}</span>
-        <span class="chip"><i class="c-${br}"></i>${c.buy}</span></button>`;
+        <span class="chip"><i class="c-${br}"></i>${price}</span></button>`;
     }
     h += `</div>`;
   }
@@ -11343,7 +11450,9 @@ function screenHTML(i){
         const c = DB[id];
         if(c.cat !== nav.cat) return false;
         if((c.sub || null) !== sub) return false;
-        return nav.mode === 'buy' ? (!!c.buy && !c.pers) : !!p.owned[id];
+        /* Playing is now strictly "what am I holding". p.owned is the census of cards
+           you possess anywhere — hand, discard or table — and is the wrong question. */
+        return nav.mode === 'buy' ? (!!c.buy && !c.pers) : handHas(p, id).length > 0;
       });
       if(!ids.length) continue;
       any = true;
@@ -11357,16 +11466,16 @@ function screenHTML(i){
             <span class="ci">${c.info || ''}</span>
             <span class="chip"><i class="c-${br}"></i>${c.buy}</span></button>`;
         } else {
-          const cost = effCost(p, id), ok = afford(p, cost);
-          h += `<button class="cbtn" data-act="play" data-id="${id}" ${ok?'':'disabled'}>
+          const cost = effCost(p, id), ok = afford(p, cost), held = handHas(p, id);
+          h += `<button class="cbtn" data-act="play" data-id="${id}" data-code="${held[0] || ''}" ${ok?'':'disabled'}>
             <span class="cn">${c.n}</span>
             <span class="ci">${c.info || ''}</span>
-            <span class="qty">${p.owned[id] > 1 ? '×'+p.owned[id] : ''}</span>
+            <span class="qty">${held.length > 1 ? '×'+held.length : ''}</span>
             ${costHTML(cost)}</button>`;
         }
       }
     }
-    if(!any) h += `<div class="empty">${nav.mode === 'buy' ? 'Nothing here.' : 'You do not own any cards of this type yet.'}</div>`;
+    if(!any) h += `<div class="empty">${nav.mode === 'buy' ? 'Nothing here.' : 'Nothing of this type in hand. Recall, or buy some.'}</div>`;
     h += `</div>`;
   }
 
@@ -11457,7 +11566,8 @@ function renderPanel(i){
   const ro = netMode() && NET.seat !== i;          // opponent's panel on a linked device
 
   let h = `<div class="phead"><span class="pdot"></span><h2>${p.name}${ro ? '' : (netMode() ? ' <span class="tag">you</span>' : '')}</h2>`
-    + (ro ? '' : `<button class="handchip" data-act="hand" title="What the app thinks you are holding">hand <b data-handn>${handCount(p)}</b></button>`)
+    + (ro ? '' : `<button class="handchip" data-act="hand" title="What the app thinks you are holding">hand <b data-handn>${handCount(p)}</b></button>`
+              + `<span class="handchip dim" title="Waiting to be recalled">discard <b data-discn>${discardCount(p)}</b></span>`)
     + `<span class="meta" id="st${i}"></span></div>`;
 
   h += `<div class="res">` + RES.map(r =>
@@ -11498,20 +11608,19 @@ function renderPanel(i){
     h += screenHTML(i);
   } else if(G.phase === 'setup'){
     h += `<div class="setupbox">
-        <div class="setupn"><b data-handn>${handCount(p)}</b><span>of ${G.cfg.openingHand}</span></div>
-        <p class="note" style="margin:0">Draw your opening hand one card at a time and scan
-        each one so the app knows what you are holding.</p>
-        ${handCount(p) ? `<button class="btn sm" data-act="hand">Fix a mis-scan</button>` : ''}
+        <div class="setupn"><b data-handn>${handCount(p)}</b><span>in hand</span></div>
+        <p class="note" style="margin:0">Lumber Camp, Farm and Gold Mine. Build them when
+        you can afford them — everything else is bought.</p>
       </div>`;
   } else {
-    /* No longer a button. Drawing is a scan now, so this is a readout of when the next
-       free draw lands and what an early one costs. */
-    h += `<div class="drawbtn" data-drawbtn>
+    /* Recall is a deliberate, paid choice, so unlike the draw readout it is a button
+       again. The bar fills as the timer runs down and the price drops. */
+    h += `<button class="drawbtn" data-act="recall" data-drawbtn>
         <span class="dfill" data-drawfill></span>
         <span class="dmk" style="left:33.33%"></span><span class="dmk" style="left:66.66%"></span>
-        <span class="dtxt">DRAW</span>
+        <span class="dtxt">RECALL</span>
         <span class="dsub" data-drawcost></span>
-      </div>`;
+      </button>`;
     if(locked) h += `<div class="waitbar">${G.players[1-i].name} is playing &mdash; wait</div>`;
     else if(NET.on && NET.err) h += `<div class="waitbar">Link problem &mdash; open This device</div>`;
     h += `<div class="acts">
@@ -11521,9 +11630,8 @@ function renderPanel(i){
           <span class="cdsub" data-cdlab></span>
         </button>
         <button class="btn big wide" data-act="open" data-m="buy">Buy Card</button>
-        <button class="btn third" data-act="shuffle">Shuffle</button>
-        <button class="btn danger third" data-act="scr" data-s="lose">Building lost</button>
-        <button class="btn third" data-act="undo" data-undobtn>Undo</button>
+        <button class="btn danger wide" data-act="scr" data-s="lose">Building lost</button>
+        <button class="btn wide" data-act="undo" data-undobtn>Undo</button>
       </div>`;
   }
 
@@ -11612,10 +11720,14 @@ function handleAct(i, b){
   }
 
   if(a === 'play'){
-    const r = actPlay(G, i, b.dataset.id, {});   // tapped, so no physical card is identified
+    /* Tapped rather than scanned, so pick a copy ourselves — otherwise the card would
+       leave the list but never leave the hand. */
+    const code = b.dataset.code || handHas(p, b.dataset.id)[0] || null;
+    const r = actPlay(G, i, b.dataset.id, {code});
     if(!r) return;
+    if(code) delete p.hand[code];
     say(i, r.log);
-    if(r.follow){ nav.screen = r.follow; renderPanel(i); renderStats(); return; }
+    if(r.follow){ nav.screen = r.follow; nav.worker = code; renderPanel(i); renderStats(); return; }
     nav = null;
     if(r.hold) hold(r.hold, null, true);
     else if(r.wait) hold(`Resolving ${DB[b.dataset.id].n} — ${p.name}`, r.wait, false);
@@ -11641,11 +11753,11 @@ function handleAct(i, b){
     closeNav(i); return;
   }
 
-  if(a === 'draw'){ const r = actDraw(G, i); if(r) sndDraw(); else sndDenied(); say(i, r); }
+  if(a === 'recall'){ const r = actRecall(G, i); if(r){ sndDraw(); scanSay(r); } else sndDenied(); say(i, r); }
   if(a === 'adj'){ sndGain(); say(i, actAdjust(G, i, b.dataset.r, +b.dataset.d)); }
   if(a === 'hp')   say(i, actHp(G, i, +b.dataset.d));
   if(a === 'undo'){ const u = undoLast(p); say(i, u ? `undid: ${u}` : null); }
-  if(a === 'shuffle'){ say(i, 'shuffling'); hold(`Shuffling — ${p.name}`, G.cfg.shufflePause, false); }
+
   renderBoth(); renderStats();
 }
 
@@ -11656,6 +11768,8 @@ function renderLog(){
     || `<div class="note" style="margin:0">Nothing yet.</div>`;
 }
 
+/* Not a deck any more — this is every card you possess, wherever it is: hand, discard,
+   or already on the table. */
 function deckSize(p){ let n = 0; for(const k in p.owned) n += p.owned[k]; return n; }
 function unitCount(p){ return (p.units || []).length; }
 
@@ -11663,19 +11777,22 @@ function renderStats(){
   const total = G.clock + G.pausedTime;
   const pct = total > 0 ? Math.round(G.pausedTime / total * 100) : 0;
   const rows = [
-    ['Deck size',     p => deckSize(p)],
+    ['Cards owned',   p => deckSize(p)],
     ['Units deployed', p => unitCount(p)],
     ['Exiled',        p => p.exiled],
     ['Buildings up',  p => p.board.length],
     ['Cards played',  p => p.plays],
     ['Market buys',   p => p.buys],
+    ['In hand',       p => handCount(p)],
+    ['In discard',    p => discardCount(p)],
     ['Own stacks left', p => Object.keys(p.pers || {}).map(k => `${DB[k].n.split(' ')[0]} ${p.pers[k]}`).join(' · ')],
-    ['Draws taken',   p => p.draws],
+    ['Recalls',       p => p.recalls || 0],
     ['HQ health',     p => p.hp + '/' + G.cfg.hqHealth],
     ['Wood earned',   p => fmt(p.earned.wood)],
     ['Food earned',   p => fmt(p.earned.food)],
     ['Gold earned',   p => fmt(p.earned.gold)],
-    ['Food on draws', p => fmt(p.foodOnDraws)],
+    ['Food on recalls', p => fmt(p.foodOnRecall || 0)],
+    ['Gold on refreshes', p => fmt(p.goldOnRefresh || 0)],
     ['Gold on buys',  p => fmt(p.goldOnBuys)],
     ['Wood on stacks',p => fmt(p.woodOnBuys || 0)],
   ];
@@ -11691,13 +11808,10 @@ function renderPause(){
   const sb = document.getElementById('startBtn'), cbx = document.getElementById('cancelBuyBtn');
 
   if(G.phase === 'setup'){
-    const need = G.cfg.openingHand;
     bar.hidden = false;
     bar.classList.add('setup'); bar.classList.remove('buying');
-    document.getElementById('pauseTitle').textContent =
-      `Opening hands — draw ${need} cards each and scan them`;
-    document.getElementById('pauseCount').textContent =
-      G.players.map((p, i) => `P${i+1} ${handCount(p)}/${need}`).join('   ');
+    document.getElementById('pauseTitle').textContent = 'Ready? Both players start holding three workstations';
+    document.getElementById('pauseCount').textContent = 'tap Start when you are both set';
     rb.hidden = true;
     if(cbx) cbx.hidden = true;
     if(sb) sb.hidden = !setupDone();
@@ -11706,7 +11820,14 @@ function renderPause(){
   }
   bar.classList.remove('setup');
   if(sb) sb.hidden = true;
-  if(!G.paused){ bar.hidden = true; document.getElementById('pauseBtn').textContent = 'Pause'; return; }
+  const rbx = document.getElementById('refreshBtn');
+  if(!G.paused){
+    bar.hidden = true;
+    if(cbx) cbx.hidden = true;
+    if(rbx) rbx.hidden = true;
+    document.getElementById('pauseBtn').textContent = 'Pause';
+    return;
+  }
   bar.hidden = false;
   document.getElementById('pauseTitle').textContent = G.pause ? G.pause.label : 'Paused';
   document.getElementById('pauseBtn').textContent = 'Resume';
@@ -11715,6 +11836,12 @@ function renderPause(){
   bar.classList.toggle('buying', buying >= 0);
   const cb = document.getElementById('cancelBuyBtn');
   if(cb) cb.hidden = !(buying >= 0 && mySeat(buying));
+  const rb2 = rbx;
+  if(rb2){
+    rb2.hidden = !(buying >= 0 && mySeat(buying));
+    rb2.textContent = `Refresh market · ${G.cfg.marketRefresh}g`;
+    rb2.disabled = buying < 0 || G.players[buying].res.gold < G.cfg.marketRefresh;
+  }
   document.getElementById('pauseCount').textContent = (G.pause && G.pause.t != null) ? G.pause.t.toFixed(1) + 's' : '';
 }
 
@@ -11740,20 +11867,26 @@ function tickRender(){
     const hqbox = document.getElementById('hq'+i);
     if(hqbox) hqbox.classList.toggle('hurt', p.hp < G.cfg.hqHealth);
 
-    const prog = Math.min(1, p.drawT / G.cfg.drawInterval);
-    const f = el.querySelector('[data-drawfill]'); if(f) f.style.width = (prog*100).toFixed(1) + '%';
-    const c = drawCost(p, G.cfg);
+    /* recallT counts DOWN, so the bar fills as the price falls */
+    const left = Math.max(0, p.recallT) / G.cfg.recallInterval;
+    const f = el.querySelector('[data-drawfill]'); if(f) f.style.width = ((1 - left) * 100).toFixed(1) + '%';
+    const c = recallCost(p, G.cfg), dn = discardCount(p), ripe = p.recallT <= 0;
+    const canRec = dn > 0 && p.frozen <= 0 && p.res.food >= c;
     const dc = el.querySelector('[data-drawcost]');
     if(dc) dc.textContent = p.frozen > 0 ? 'frozen'
-      : c === 0 ? 'free now — scan your card'
-      : (p.res.food >= c ? `${c} Food — scan your card` : `${c} Food — not enough`);
+      : dn === 0 ? 'discard empty'
+      : p.res.food < c ? `${dn} card${dn===1?'':'s'} · need ${c} Food`
+      : `${dn} card${dn===1?'':'s'} · ${c} Food${ripe ? '' : ' early'}`;
     const db = el.querySelector('[data-drawbtn]');
     if(db){
-      db.classList.toggle('free', c === 0 && p.frozen <= 0);
-      db.classList.toggle('cold', p.frozen > 0 || (c > 0 && p.res.food < c));
+      db.classList.toggle('free', ripe && canRec);
+      db.classList.toggle('cold', !canRec);
+      db.disabled = !canRec;
     }
     const hn = el.querySelector('[data-handn]');
     if(hn) hn.textContent = handCount(p);
+    const dn2 = el.querySelector('[data-discn]');
+    if(dn2) dn2.textContent = discardCount(p);
     const ub = el.querySelector('[data-undobtn]'); if(ub) ub.disabled = !p.undo.length;
 
     const pb = el.querySelector('[data-playbtn]');
@@ -11769,7 +11902,7 @@ function tickRender(){
     el.classList.toggle('frozen', p.frozen > 0);
     const meta = document.getElementById('st'+i);
     if(meta) meta.textContent = p.frozen > 0 ? `frozen ${p.frozen.toFixed(1)}s`
-      : (p.cd > 0 ? `cooldown ${p.cd.toFixed(1)}s` : `deck ${deckSize(p)}`);
+      : (p.cd > 0 ? `cooldown ${p.cd.toFixed(1)}s` : `${deckSize(p)} cards`);
   }
 }
 
@@ -11890,17 +12023,6 @@ document.getElementById('copyLog').onclick = () => {
    a window, and the next card you scan is bought and stamped as yours.
    ============================================================ */
 
-const ABBR = {
-  hq:'HQ---', lumber:'LUMBR', farm:'FARM-', mine:'MINE-', spearman:'SPEAR', archer:'ARCHR',
-  worker:'WORKR', move:'MOVE-', attack:'ATTCK', coin:'COIN-', fwood:'WOOD-', ffood:'FOOD-',
-  wild:'WILD-', mmove:'MMOVE', volley:'VOLLY', freeze:'FREEZ', famine:'FAMIN', reclaim:'RECLM',
-  unrel:'UNREL', sabotage:'SABOT', gate:'GATE-', tower:'TOWER', quarry:'QUARY', granary:'GRANY',
-  mint:'MINT-', barracks:'BARRK', citadel:'CITDL', skirm:'SKIRM', xbow:'XBOW-', pike:'PIKE-',
-  ram:'RAM--', knight:'KNGHT', treb:'TREB-', sapper:'SAPPR', champ:'CHAMP', medic:'MEDIC',
-  eng:'ENGNR', bearer:'BEARR',
-  droad:'DROAD', maa:'MENAT', charge:'CHARG', proad:'PROAD', sgate:'SGATE',
-};
-const BYCODE = {}; for(const k in ABBR) BYCODE[ABBR[k]] = k;
 const CODE_RE = /^([12MW])([A-Z0-9-]{5})(\d{2})$/;
 
 function parseCode(s){
@@ -11941,6 +12063,7 @@ function armBuy(i){
   if(p.frozen > 0){ sndDenied(); scanSay('Frozen', true); return; }
   hold(`Buying — ${p.name} · scan the card you want`, BUY_WINDOW, false);
   G.pause.buy = i;
+  renderPause();                      // repaint now that the window is flagged open
   sndArm(); scanSay(`Buy window open — ${p.name}`);
   renderBoth(); push();
 }
@@ -11954,9 +12077,20 @@ function cancelBuy(){
 /* A 1 or 2 prefix settles ownership outright. M and W cards are ownerless until bought,
    and p.cards is what remembers the answer afterwards. */
 function codeOwner(c){
-  if(c.owner === '1') return 0;
-  if(c.owner === '2') return 1;
+  /* Only starter and personal-supply designs are owned by their printed prefix. A market
+     card is anyone's until bought — which matters now that Wild has moved to the market
+     while its printed copies still carry a 1 or a 2. */
+  const card = DB[c.id], mine = card && (card.start || card.pers);
+  if(mine && c.owner === '1') return 0;
+  if(mine && c.owner === '2') return 1;
   for(let i = 0; i < 2; i++){ const cc = G.players[i].cards; if(cc && cc[c.code]) return i; }
+  if(DB[c.id] && DB[c.id].fung){
+    const order = netMode() ? [NET.seat, 1 - NET.seat] : [0, 1];
+    for(const i of order){
+      const p = G.players[i];
+      if(anyOfDesign(p.hand, c.id) || anyOfDesign(p.discard, c.id)) return i;
+    }
+  }
   return -1;
 }
 
@@ -11974,6 +12108,7 @@ function onScan(raw){
 
   const card = DB[c.id];
   if(!card){ sndDenied(); scanSay('Unknown card', true); return; }
+  if(card.retired){ sndDenied(); scanSay(`${card.n} is not used in these rules`, true); return; }
 
   const buying = buyOpen();
   let i = codeOwner(c);
@@ -11988,7 +12123,7 @@ function onScan(raw){
   }
   if(netMode() && i !== NET.seat) return;     // the other tablet owns this scan
 
-  if(G.phase === 'setup'){ doSetupDraw(i, c); return; }
+  if(G.phase === 'setup'){ sndDenied(); scanSay('Tap Start to begin', true); return; }
 
   /* Placing a worker: the building is a card sitting on the table, so scan it and put it
      back. The tap list stays as a fallback for a building the camera will not read. */
@@ -12005,11 +12140,30 @@ function onScan(raw){
     doScanBuy(i, c); return;
   }
 
-  /* The card's own history decides which action this is. Scan one the app has not handed
-     you and you are drawing it off your deck; scan one it has and you are playing it.
-     Unambiguous only because every physical card carries its own code. */
-  if(G.players[i].hand && G.players[i].hand[c.code]) doScanPlay(i, c);
-  else doScanDraw(i, c);
+  /* There is no drawing any more, so a scan is a play or an explanation of why not.
+     Where the card sits — hand, discard, table, or not yours at all — is the answer. */
+  const pl = G.players[i];
+  if(pl.hand[c.code]){ doScanPlay(i, c); return; }
+
+  /* Fungible designs answer by kind, not by copy, so look for any one of them. */
+  if(fungible(c.id)){
+    const inHand = anyOfDesign(pl.hand, c.id);
+    if(inHand){ doScanPlay(i, {owner:c.owner, id:c.id, copy:c.copy, code:inHand}); return; }
+    if(anyOfDesign(pl.discard, c.id)){
+      sndDenied(); scanSay(`${card.n} is in your discard — recall to get it back`, true); return;
+    }
+  }
+  const claimed = claimPlaceholder(pl, c.id, c.code);
+  if(claimed === 'hand'){ doScanPlay(i, c); return; }
+  if(claimed === 'discard'){
+    sndDenied(); scanSay(`${card.n} is in your discard — recall to get it back`, true);
+    renderBoth(); push(); return;
+  }
+  sndDenied();
+  if(pl.discard[c.code]) scanSay(`${card.n} is in your discard — recall to get it back`, true);
+  else if(findOnTable(i, c.code)) scanSay(`That ${card.n} is already on the table`, true);
+  else if(card.retired) scanSay(`${card.n} is not used in these rules`, true);
+  else scanSay(`Scan your HQ to buy ${card.n}`, true);
 }
 
 /* Starter cards are in the deck from the first shuffle. Everything else — market,
@@ -12019,43 +12173,6 @@ function ownsCard(i, c){
   const p = G.players[i], card = DB[c.id];
   if(p.cards && p.cards[c.code]) return true;
   return !!(card && card.start && (c.owner === '1' || c.owner === '2'));
-}
-
-function doSetupDraw(i, c){
-  const p = G.players[i], card = DB[c.id], need = G.cfg.openingHand;
-  if(!ownsCard(i, c)){ sndDenied(); scanSay(`${card.n} is not in the starting deck`, true); return; }
-  if(p.hand[c.code]){ sndDenied(); scanSay('Already scanned that card', true); return; }
-  if(handCount(p) >= need){ sndDenied(); scanSay(`${p.name} already has ${need}`, true); return; }
-  p.hand[c.code] = c.id;
-  sndDraw();
-  const n = handCount(p);
-  scanSay(setupDone() ? 'Both hands ready — tap Start' : `${p.name} · ${n} of ${need}`);
-  if(setupDone()) sndBuy();
-  renderBoth(); renderPause(); push();
-}
-
-function doScanDraw(i, c){
-  const p = G.players[i], card = DB[c.id];
-  if(!ownsCard(i, c)){
-    sndDenied(); scanSay(`${card.n} is not in your deck — scan your HQ to buy it`, true); return;
-  }
-  if(nav){ sndDenied(); scanSay('Finish the open menu first', true); return; }
-  if(G.paused){ sndDenied(); scanSay('Game is paused', true); return; }
-  if(p.frozen > 0){ sndDenied(); scanSay(`Frozen — ${p.frozen.toFixed(1)}s`, true); return; }
-  const cost = drawCost(p, G.cfg);
-  const r = actDraw(G, i);
-  if(!r){
-    sndDenied();
-    scanSay(cost > 0 ? `Drawing early costs ${cost} Food` : 'Cannot draw right now', true);
-    return;
-  }
-  p.hand[c.code] = c.id;
-  sndDraw();
-  /* The log is shared, and so is the screen on a single tablet, so a drawn card is never
-     named anywhere — you are holding it, and the app saying it aloud only leaks it. */
-  say(i, r);
-  scanSay(`Drew — hand ${handCount(p)}`);
-  renderBoth(); renderStats(); push();
 }
 
 function doScanStaff(i, c){
@@ -12093,7 +12210,7 @@ function doScanLoss(i, c){
 }
 
 function doScanBuy(i, c){
-  const card = DB[c.id], r = actBuy(G, i, c.id);
+  const card = DB[c.id], r = actBuy(G, i, c.id, {code:c.code});
   if(!r){
     sndDenied();
     const need = (card.buyR || 'gold');
@@ -12102,8 +12219,7 @@ function doScanBuy(i, c){
       : `Need ${card.buy} ${need.charAt(0).toUpperCase() + need.slice(1)} for ${card.n}`, true);
     return;
   }
-  G.players[i].cards[c.code] = 1;
-  say(i, r); sndBuy(); scanSay(r);
+  say(i, r); sndBuy(); scanSay(r + ' — into your discard');
   release(); renderBoth(); renderStats(); push();
 }
 
@@ -12409,6 +12525,17 @@ function fillLinkInputs(){
 /* ---------- scanning + link controls ---------- */
 document.getElementById('camBtn').onclick = () => { SCAN.on ? camStop() : camStart(); };
 document.getElementById('cancelBuyBtn').onclick = () => cancelBuy();
+document.getElementById('refreshBtn').onclick = () => {
+  const i = buyOpen();
+  if(i < 0 || !mySeat(i)) return;
+  const r = actRefreshMarket(G, i);
+  if(!r){ sndDenied(); scanSay(`Need ${G.cfg.marketRefresh} Gold to refresh`, true); return; }
+  say(i, r); sndBuy(); scanSay(r);
+  /* Dealing five new cards takes a moment, so give the window back its full time rather
+     than making them race a timer they just paid to reset. */
+  if(G.pause) G.pause.t = BUY_WINDOW;
+  renderBoth(); renderStats(); push();
+};
 
 document.getElementById('lk_save').onclick = () => {
   const room = (document.getElementById('lk_room').value || '').trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
@@ -12446,10 +12573,9 @@ document.getElementById('lk_clear').onclick = () => {
 const FIELDS = {
   s_bw:['baseIncome','wood'], s_bf:['baseIncome','food'], s_bg:['baseIncome','gold'],
   s_sw:['start','wood'], s_sf:['start','food'], s_sg:['start','gold'],
-  s_hp:['hqHealth'], s_int:['drawInterval'],
-  s_c6:['costFar'], s_c4:['costMid'], s_c2:['costNear'],
-  s_cd:['cooldown'], s_shuf:['shufflePause'], s_frz:['freeze'], s_tgt:['target'],
-  s_open:['openingHand'],
+  s_hp:['hqHealth'], s_int:['recallInterval'],
+  s_c0:['recallFloor'], s_c2:['recallNear'], s_c4:['recallMid'], s_c6:['recallFar'],
+  s_cd:['cooldown'], s_mkt:['marketRefresh'], s_frz:['freeze'], s_tgt:['target'],
 };
 function syncCfgInputs(){
   for(const id in FIELDS){
