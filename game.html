@@ -11943,14 +11943,38 @@ function gotCode(text){
    page runs in a frame that will not hand over the camera. On its own web address the
    camera works and that store is gone, so linked play runs on Firebase instead. Both
    are reduced to the same three calls, so the sync logic above never learns which. */
-const LINK = {cfg:null, room:''};
+const LINK = {cfg:null, room:'', baked:false};
+
+/* Baked in so a device needs no setup at all: open the page, pick a seat, play.
+   A Firebase web config is not a credential — it ships in the client of every site that
+   uses Firebase, and the database rules are what actually guard the data. The game code
+   below is the one thing worth treating as private-ish: with the open rules in
+   firebase-setup.md, anyone holding both could join. It is random rather than guessable,
+   and either device can change it under Device without touching this file. */
+const LINK_BAKED = {
+  room: 'jzfvc430eh',
+  cfg: {
+    apiKey: "AIzaSyCcOIMO3uuUOvZ5mdKMo5fSqYnuR80v3tY",
+    authDomain: "build-order-dc7de.firebaseapp.com",
+    databaseURL: "https://build-order-dc7de-default-rtdb.firebaseio.com",
+    projectId: "build-order-dc7de",
+    storageBucket: "build-order-dc7de.firebasestorage.app",
+    messagingSenderId: "851107837816",
+    appId: "1:851107837816:web:649bc522a9a5ee6d2aba8d",
+  },
+};
 
 function loadLink(){
+  let savedCfg = null, savedRoom = null;
   try{
     const raw = localStorage.getItem('bo-fb');
-    if(raw) LINK.cfg = JSON.parse(raw);
-    LINK.room = localStorage.getItem('bo-room') || '';
+    if(raw) savedCfg = JSON.parse(raw);
+    savedRoom = localStorage.getItem('bo-room');
   }catch(e){}
+  /* anything saved on this device wins, so the Device screen can still override */
+  LINK.cfg  = savedCfg || (LINK_BAKED.cfg && LINK_BAKED.cfg.databaseURL ? LINK_BAKED.cfg : null);
+  LINK.room = savedRoom != null ? savedRoom : LINK_BAKED.room;
+  LINK.baked = !savedCfg && !!LINK.cfg;
 }
 
 /* The console hands out a JS object literal, not JSON: bare keys, single quotes,
@@ -12051,14 +12075,17 @@ async function openRef(){
 function linkState(){
   const el = document.getElementById('lk_state'), help = document.getElementById('lk_help');
   if(help){
-    help.textContent = (window.claude && claude.use)
-      ? 'Inside claude.ai the two devices link by themselves, and the camera is unavailable. On your own web address it is the other way round: fill this in once per device.'
-      : 'Both devices need the same game code and the same Firebase config. Fill it in once per device — it is remembered.';
+    help.textContent = LINK.baked
+      ? 'Nothing to fill in — this build already carries the Firebase settings. Just pick Player 1 on one device and Player 2 on the other. Change the game code only if you want a separate game running at the same time.'
+      : (window.claude && claude.use)
+        ? 'Inside claude.ai the two devices link by themselves, and the camera is unavailable. On your own web address it is the other way round: fill this in once per device.'
+        : 'Both devices need the same game code and the same Firebase config. Fill it in once per device — it is remembered.';
   }
   if(!el) return;
   if(LINK.cfg && LINK.room){
     el.classList.remove('bad');
-    el.textContent = `Linked through ${LINK.cfg.projectId || 'Firebase'} · game code ${LINK.room}`;
+    el.textContent = `${LINK.baked ? 'Ready to link' : 'Linked'} through ${LINK.cfg.projectId || 'Firebase'}`
+      + ` · game code ${LINK.room}` + (LINK.baked ? ' (built in — nothing to paste)' : '');
   } else if(LINK.cfg){
     el.classList.add('bad'); el.textContent = 'Config saved — now set a game code.';
   } else if(window.claude && claude.use){
@@ -12071,7 +12098,12 @@ function linkState(){
 function fillLinkInputs(){
   const r = document.getElementById('lk_room'), c = document.getElementById('lk_cfg');
   if(r) r.value = LINK.room || '';
-  if(c && LINK.cfg) c.value = JSON.stringify(LINK.cfg, null, 1);
+  if(c){
+    /* A baked config stays out of the box: showing it invites editing something that
+       needs no editing. The box is only for replacing it. */
+    if(LINK.baked){ c.value = ''; c.placeholder = 'Already set up — paste here only to use a different Firebase project'; }
+    else if(LINK.cfg) c.value = JSON.stringify(LINK.cfg, null, 1);
+  }
   linkState();
 }
 
@@ -12103,11 +12135,13 @@ document.getElementById('lk_save').onclick = () => {
 document.getElementById('lk_new').onclick = () => {
   document.getElementById('lk_room').value = Math.random().toString(36).slice(2, 8);
 };
+/* Clear drops what this device saved and falls back to whatever is baked in, rather
+   than leaving the device with nothing — otherwise "Clear" is a trap. */
 document.getElementById('lk_clear').onclick = () => {
-  LINK.cfg = null; LINK.room = ''; fbReady = null;
+  fbReady = null;
   try{ localStorage.removeItem('bo-fb'); localStorage.removeItem('bo-room'); }catch(e){}
-  document.getElementById('lk_cfg').value = ''; document.getElementById('lk_room').value = '';
-  netStop(); fillLinkInputs();
+  document.getElementById('lk_cfg').value = '';
+  netStop(); loadLink(); fillLinkInputs();
 };
 
 const FIELDS = {
