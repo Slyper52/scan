@@ -10777,8 +10777,10 @@ const DB = {
   /* Each worker costs one Wood more than the last, so a wide economy has a rising price
      rather than a flat one. buyStep drives that. */
   worker:{n:'Worker', cat:'unit', sub:'worker', pers:10, buy:3, buyStep:1, buyR:'wood', fung:1, cost:{food:5}, info:'staff a building · +1 Wood each', act:'worker'},
-  move:{n:'Move', cat:'ability', pers:3, buy:3, buyR:'wood', cost:{food:3}, info:'move a unit', pauseFor:3},
-  attack:{n:'Attack', cat:'ability', pers:3, buy:3, buyR:'wood', cost:{food:3}, info:'attack with a unit', act:'attack'},
+  /* buyAdd is a ladder, not a rate: each entry is what THAT purchase adds on top of the
+     one before. 3 -> 6 -> 11, so your third action card is a real commitment. */
+  move:{n:'Move', cat:'ability', pers:3, buy:3, buyAdd:[0,3,5], seq:1, buyR:'wood', cost:{food:3}, info:'move a unit · A 3 / B 6 / C 11', pauseFor:3},
+  attack:{n:'Attack', cat:'ability', pers:3, buy:3, buyAdd:[0,3,5], seq:1, buyR:'wood', cost:{food:3}, info:'attack with a unit · A 3 / B 6 / C 11', act:'attack'},
   /* Retired by Refresh B. Kept in the table ONLY so a printed copy still resolves when
      scanned and can say so, instead of reading as an unknown card. */
   coin:{n:'Coin', cat:'ability', sub:'filler', cost:{}, gain:{gold:1}, retired:1, info:'+1 Gold'},
@@ -11105,11 +11107,36 @@ function buyRes(c){ return c.buyR || 'gold'; }        // personal stacks are bou
 
 /* Most cards have a flat price. A card with buyStep gets dearer with every copy you take
    off your own stack — the depth already spent is the multiplier. */
+/* Move and Attack are printed as A, B and C so the physical stack can be sorted
+   cheapest-on-top. Keep SEQ and the seq flags in step with cards.html. */
+const SEQ = 'ABCDEFGH';
+
 function buyCost(p, id){
   const c = DB[id];
-  if(!c.buyStep || !c.pers) return c.buy;
-  const taken = c.pers - (p.pers[id] || 0);
-  return c.buy + c.buyStep * taken;
+  if(!c.pers) return c.buy;
+  const taken = c.pers - (p.pers[id] || 0);        // how many you have already taken
+  if(Array.isArray(c.buyAdd)){
+    let n = c.buy;
+    for(let k = 0; k <= taken && k < c.buyAdd.length; k++) n += c.buyAdd[k];
+    return n;
+  }
+  if(c.buyStep) return c.buy + c.buyStep * taken;
+  return c.buy;
+}
+
+/* The whole price ladder, for showing on a button rather than one number at a time. */
+function buyLadder(id){
+  const c = DB[id];
+  if(!c.pers) return [c.buy];
+  const out = [];
+  for(let k = 0; k < c.pers; k++){
+    if(Array.isArray(c.buyAdd)){
+      let n = c.buy;
+      for(let j = 0; j <= k && j < c.buyAdd.length; j++) n += c.buyAdd[j];
+      out.push(n);
+    } else out.push(c.buy + (c.buyStep || 0) * k);
+  }
+  return out;
 }
 
 /* A tapped buy knows WHAT was bought but not WHICH physical card, because the copy comes
@@ -11145,7 +11172,14 @@ function actBuy(G, i, id, opts){
   if(opts && opts.code && !fungible(id)){ p.cards[opts.code] = 1; p.discard[opts.code] = id; }
   else p.discard[placeholder(id)] = id;   // tapped, or fungible: any copy will answer
   const R = r.charAt(0).toUpperCase() + r.slice(1);
-  if(c.pers){ p.pers[id]--; return `bought ${c.n} from your stack for ${price} ${R} (${p.pers[id]} left)`; }
+  if(c.pers){
+    p.pers[id]--;
+    /* Lettered stacks are sorted cheapest-first on the table, so the copy you just took
+       off the top has a letter — say it, and the player can see the card in their hand is
+       the one the app charged them for. */
+    const nm = c.seq ? `${c.n} ${SEQ.charAt(c.pers - 1 - p.pers[id])}` : c.n;
+    return `bought ${nm} from your stack for ${price} ${R} (${p.pers[id]} left)`;
+  }
   return `bought ${c.n} for ${price} ${R}`;
 }
 
@@ -11447,7 +11481,9 @@ function screenHTML(i){
         <span class="cn">${c.n}</span>
         <span class="ci">${c.info || ''}</span>
         <span class="qty">${left ? left + ' left' : 'out'}</span>
-        <span class="chip"><i class="c-${br}"></i>${price}</span></button>`;
+        <span class="chip"><i class="c-${br}"></i>${price}${
+          (c.buyAdd || c.buyStep) && left > 1 ? `<small style="opacity:.6">→${buyLadder(id).slice(c.pers - left + 1).join('/')}</small>` : ''
+        }</span></button>`;
     }
     h += `</div>`;
   }
@@ -12141,12 +12177,15 @@ function onScan(raw){
   const buying = buyOpen();
   let i = codeOwner(c);
   if(i < 0) i = buying;                       // ownerless card, bought by whoever opened the window
+  if(i < 0 && netMode() && card.pers) i = NET.seat;   // your device, your supply
   if(i < 0){
     sndDenied();
     /* during setup there is no buy window to point them at — the real problem is that
        this card is not in anybody's starting deck */
     scanSay(G.phase === 'setup' ? `${card.n} is not in the starting deck`
-                                : `Scan your HQ first to buy ${card.n}`, true);
+      : (card.pers && fungible(c.id))
+        ? `Scan your HQ first — the app cannot tell whose ${card.n} this is`
+        : `Scan your HQ first to buy ${card.n}`, true);
     return;
   }
   if(netMode() && i !== NET.seat) return;     // the other tablet owns this scan
@@ -12187,11 +12226,14 @@ function onScan(raw){
     sndDenied(); scanSay(`${card.n} is in your discard — recall to get it back`, true);
     renderBoth(); push(); return;
   }
+  if(pl.discard[c.code]){ sndDenied(); scanSay(`${card.n} is in your discard — recall to get it back`, true); return; }
+  if(findOnTable(i, c.code)){ sndDenied(); scanSay(`That ${card.n} is already on the table`, true); return; }
+
+  /* Not yours yet, and it comes off your own supply: that is a purchase, said plainly. */
+  if(card.pers){ doSupplyBuy(i, c); return; }
+
   sndDenied();
-  if(pl.discard[c.code]) scanSay(`${card.n} is in your discard — recall to get it back`, true);
-  else if(findOnTable(i, c.code)) scanSay(`That ${card.n} is already on the table`, true);
-  else if(card.retired) scanSay(`${card.n} is not used in these rules`, true);
-  else scanSay(`Scan your HQ to buy ${card.n}`, true);
+  scanSay(`Scan your HQ to buy ${card.n}`, true);
 }
 
 /* Starter cards are in the deck from the first shuffle. Everything else — market,
@@ -12234,6 +12276,25 @@ function doScanLoss(i, c){
   else r = actLoseWorker(G, i, at.bi, at.si);
   if(!r){ sndDenied(); return; }
   say(i, r); sndDenied(); scanSay(r, true);   // a loss should not sound like a success
+  renderBoth(); renderStats(); push();
+}
+
+/* Your own supply is a stack sitting in front of you, and picking a card off it is not
+   ambiguous the way a shared market row is — so it needs no HQ handshake and no window.
+   Scan it and it is bought. The market keeps the handshake, because the app cannot
+   otherwise tell which player is reaching for the shared row. */
+function doSupplyBuy(i, c){
+  const p = G.players[i], card = DB[c.id];
+  if(!(p.pers[c.id] > 0)){ sndDenied(); scanSay(`Your ${card.n} stack is empty`, true); return; }
+  const price = buyCost(p, c.id), r = buyRes(card);
+  if(p.res[r] < price){
+    sndDenied();
+    scanSay(`Need ${price} ${r.charAt(0).toUpperCase() + r.slice(1)} for ${card.n}`, true);
+    return;
+  }
+  const msg = actBuy(G, i, c.id, {code:c.code});
+  if(!msg){ sndDenied(); return; }
+  say(i, msg); sndBuy(); scanSay(msg + ' — into your discard');
   renderBoth(); renderStats(); push();
 }
 
