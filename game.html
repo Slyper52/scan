@@ -10391,6 +10391,41 @@ body.phone .panel.remote .rostat{min-height:0; padding:5px; font-size:11.5px}
 .t-wood{color:var(--wood)} .t-gold{color:var(--gold)} .t-food{color:var(--food)}
 
 /* the Draw button IS the timer: progress fills it, and it turns green when free */
+/* ---- the four ability slots ------------------------------------------------
+   These replaced the hand. Each is a card sitting face-up in front of the player, and
+   the fill is its cooldown draining — the only thing that rations how often you act. */
+.abils{display:grid; grid-template-columns:1fr 1fr; gap:8px}
+.abwrap{position:relative; display:flex}
+.abwrap .ab{flex:1}
+.ab{position:relative; overflow:hidden; text-align:left; min-height:62px;
+  display:grid; grid-template-columns:1fr auto; align-items:center; gap:2px 8px;
+  padding:9px 11px; border-radius:8px; border:1px solid var(--line);
+  background:var(--surface-2); color:inherit; font:inherit}
+.ab .abfill{position:absolute; inset:0 auto 0 0; width:0%; background:var(--line); z-index:0}
+.ab.cool .abfill{background:var(--alert-soft)}
+.ab > :not(.abfill){position:relative; z-index:1}
+.ab .abn{font-family:'Zilla Slab',Georgia,serif; font-size:16px; font-weight:600; line-height:1.15}
+.ab .abup{font-family:'Archivo',sans-serif; font-size:11px; font-weight:700; margin-left:5px;
+  padding:1px 5px; border-radius:99px; background:var(--go); color:var(--go-ink); vertical-align:2px}
+.ab.ready .abup{background:var(--go-ink); color:var(--go)}
+.ab .abi{grid-column:1; font-size:11.5px; color:var(--ink-2); line-height:1.25}
+.ab .abt{grid-row:1/3; grid-column:2; font-size:13px; font-weight:700; white-space:nowrap;
+  font-variant-numeric:tabular-nums; display:flex; gap:4px; align-items:center}
+.ab.ready{background:var(--go); border-color:var(--go); color:var(--go-ink)}
+.ab.ready .abi{color:var(--go-ink); opacity:.8}
+.ab.ready .abfill{display:none}
+.ab:disabled{opacity:.62}
+.ab.cool:disabled{opacity:1; color:var(--ink-2)}
+.ab.empty{opacity:.5; border-style:dashed; background:none}
+.abx{position:absolute; top:0; right:0; z-index:3; width:26px; height:26px; padding:0;
+  display:flex; align-items:center; justify-content:center; font-size:16px; line-height:1;
+  color:var(--ink-3); background:none; border:0; border-bottom-left-radius:7px}
+.abx:hover{color:var(--alert); background:var(--alert-soft)}
+.ab.ready + .abx{color:var(--go-ink); opacity:.75}
+body.phone .abils{gap:6px}
+body.phone .ab{min-height:54px; padding:7px 9px}
+body.phone .ab .abn{font-size:15px}
+
 .drawbtn{position:relative; overflow:hidden; width:100%; min-height:88px; border-radius:8px;
   border:2px solid var(--line); background:var(--bg); color:var(--ink);
   display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; padding:8px}
@@ -10679,12 +10714,10 @@ body.phone .toast{font-size:16px; padding:10px 15px; bottom:12px; max-width:94vw
       <p class="note">Applies on reset.</p>
     </div>
     <div class="sgroup">
-      <h3>Recall</h3>
-      <div class="frow"><label for="s_int">Recall timer <span class="tag">sec</span></label><input type="number" id="s_int" step="1"></div>
-      <div class="frow"><label for="s_c0">Cost at 0 <span class="tag">Food</span></label><input type="number" id="s_c0" step="1"></div>
-      <div class="frow"><label for="s_c2">Cost below 1/3 left</label><input type="number" id="s_c2" step="1"></div>
-      <div class="frow"><label for="s_c4">Cost 1/3&ndash;2/3 left</label><input type="number" id="s_c4" step="1"></div>
-      <div class="frow"><label for="s_c6">Cost above 2/3 left</label><input type="number" id="s_c6" step="1"></div>
+      <h3>Abilities</h3>
+      <div class="frow"><label for="s_ab">Ability slots</label><input type="number" id="s_ab" step="1"></div>
+      <p class="note">Move and Attack fill two of them at the start. Each ability has its
+      own cooldown, printed on the card; the app reads it from the card table.</p>
     </div>
     <div class="sgroup">
       <h3>Pacing</h3>
@@ -10765,10 +10798,11 @@ body.phone .toast{font-size:16px; padding:10px 15px; bottom:12px; max-width:94vw
 const RES = ['wood','gold','food'];
 
 const DB = {
-  /* starter buildings */
-  lumber:{n:'Lumber Camp', cat:'building', cost:{wood:10}, income:{wood:5}, cap:3, per:{wood:3}, hp:5, start:1},
-  farm:{n:'Farm', cat:'building', cost:{wood:5,food:5}, income:{food:5}, cap:3, per:{food:3}, hp:5, start:1},
-  mine:{n:'Gold Mine', cat:'building', cost:{wood:10,gold:3}, income:{gold:2}, cap:3, per:{gold:1}, hp:5, start:1},
+  /* The three workstations are supply cards like everything else now. buy:0 means their
+     whole price is the build cost below — which is what the merged price adds up. */
+  lumber:{n:'Lumber Camp', cat:'building', pers:1, buy:0, buyR:'wood', cost:{wood:10}, income:{wood:5}, cap:3, per:{wood:3}, hp:5},
+  farm:{n:'Farm', cat:'building', pers:1, buy:0, buyR:'wood', cost:{wood:5,food:5}, income:{food:5}, cap:3, per:{food:3}, hp:5},
+  mine:{n:'Gold Mine', cat:'building', pers:1, buy:0, buyR:'wood', cost:{wood:10,gold:3}, income:{gold:2}, cap:3, per:{gold:1}, hp:5},
   /* ---- personal supply: everything below is bought with Wood, always in stock ----
      Refresh B moved Spearman, Archer, Worker, Move and Attack out of the starting deck
      and into here. Nothing but the three workstations above starts in hand. */
@@ -10779,8 +10813,21 @@ const DB = {
   worker:{n:'Worker', cat:'unit', sub:'worker', pers:10, buy:3, buyStep:1, buyR:'wood', fung:1, cost:{food:5}, info:'staff a building · +1 Wood each', act:'worker'},
   /* buyAdd is a ladder, not a rate: each entry is what THAT purchase adds on top of the
      one before. 3 -> 6 -> 11, so your third action card is a real commitment. */
-  move:{n:'Move', cat:'ability', pers:3, buy:3, buyAdd:[0,3,5], seq:1, buyR:'wood', cost:{food:3}, info:'move a unit · A 3 / B 6 / C 11', pauseFor:3},
-  attack:{n:'Attack', cat:'ability', pers:3, buy:3, buyAdd:[0,3,5], seq:1, buyR:'wood', cost:{food:3}, info:'attack with a unit · A 3 / B 6 / C 11', act:'attack'},
+  move:{n:'Move', cat:'ability', pers:1, buyR:'wood', cost:{food:3}, cool:12, start:1, info:'move a unit', pauseFor:3},
+  attack:{n:'Attack', cat:'ability', pers:1, buyR:'wood', cost:{food:3}, cool:12, start:1, info:'attack with a unit', act:'attack'},
+  /* ---- Upgrades ----------------------------------------------------------
+     An upgrade is not a second copy of the ability and does not give you a second
+     action. You buy it, scan it once, and it permanently cuts that ability's cooldown —
+     then the card comes out of the game. The two stack at 20% each, so owning both takes
+     Move from 12 seconds to 7.2. They are also the only large recurring Wood sink. */
+  moveup1:{n:'Move Upgrade I', cat:'upgrade', pers:1, buy:15, buyR:'wood', upg:'move', cut:0.20,
+           info:'Move cooldown −20%, for good'},
+  moveup2:{n:'Move Upgrade II', cat:'upgrade', pers:1, buy:30, buyR:'wood', upg:'move', cut:0.20,
+           info:'Move cooldown −20% more'},
+  atkup1:{n:'Attack Upgrade I', cat:'upgrade', pers:1, buy:15, buyR:'wood', upg:'attack', cut:0.20,
+          info:'Attack cooldown −20%, for good'},
+  atkup2:{n:'Attack Upgrade II', cat:'upgrade', pers:1, buy:30, buyR:'wood', upg:'attack', cut:0.20,
+          info:'Attack cooldown −20% more'},
   /* Retired by Refresh B. Kept in the table ONLY so a printed copy still resolves when
      scanned and can say so, instead of reading as an unknown card. */
   coin:{n:'Coin', cat:'ability', sub:'filler', cost:{}, gain:{gold:1}, retired:1, info:'+1 Gold'},
@@ -10792,15 +10839,15 @@ const DB = {
   maa:{n:'Men at Arms', cat:'unit', sub:'military', pers:3, buy:10, buyR:'wood', cost:{food:8,wood:2}, info:'2 wht · hp 5 · arm 1'},
   gate:{n:'Gate', cat:'building', pers:3, buy:12, buyR:'wood', cost:{wood:10}, hp:7, info:'blocks a path · hp 7'},
   /* market — abilities */
-  wild:{n:'Wild', cat:'ability', rar:'C', buy:5, cost:{food:4}, info:'move OR attack', pauseFor:3},
-  charge:{n:'Charge', cat:'ability', rar:'C', buy:7, cost:{food:5}, info:'move AND attack', act:'attack'},
-  mmove:{n:'Multi Move', cat:'ability', rar:'C', buy:7, cost:{food:4}, info:'move up to 2', pauseFor:3},
-  volley:{n:'Volley', cat:'ability', rar:'C', buy:6, cost:{food:5}, info:'2 units, one target', act:'attack'},
-  freeze:{n:'Freeze Opponent', cat:'ability', rar:'R', buy:8, cost:{food:4}, info:'freeze foe 5s', act:'freeze'},
-  unrel:{n:'Unrelenting Attack', cat:'ability', rar:'R', buy:10, cost:{food:5}, info:'attack twice', act:'attack'},
-  sabotage:{n:'Sabotage', cat:'ability', rar:'R', buy:12, cost:{food:8}, info:'4 dmg to a building'},
-  reclaim:{n:'Reclaim', cat:'ability', rar:'R', buy:8, cost:{gold:6}, info:'un-exile a unit', act:'reclaim'},
-  famine:{n:'Famine', cat:'ability', rar:'R', buy:9, cost:{food:6}, info:'kill an enemy worker'},
+  wild:{n:'Wild', cat:'ability', rar:'C', buy:5, cost:{food:4}, cool:15, info:'move OR attack · cd 15s', pauseFor:3},
+  charge:{n:'Charge', cat:'ability', rar:'C', buy:7, cost:{food:5}, cool:30, info:'move AND attack · cd 30s', act:'attack'},
+  mmove:{n:'Multi Move', cat:'ability', rar:'C', buy:7, cost:{food:4}, cool:25, info:'move up to 2 · cd 25s', pauseFor:3},
+  volley:{n:'Volley', cat:'ability', rar:'C', buy:6, cost:{food:5}, cool:25, info:'2 units, one target · cd 25s', act:'attack'},
+  freeze:{n:'Freeze Opponent', cat:'ability', rar:'R', buy:8, cost:{food:4}, cool:45, info:'freeze foe 5s · cd 45s', act:'freeze'},
+  unrel:{n:'Unrelenting Attack', cat:'ability', rar:'R', buy:10, cost:{food:5}, cool:40, info:'attack twice · cd 40s', act:'attack'},
+  sabotage:{n:'Sabotage', cat:'ability', rar:'R', buy:12, cost:{food:8}, cool:45, info:'4 dmg to a building · cd 45s'},
+  reclaim:{n:'Reclaim', cat:'ability', rar:'R', buy:8, cost:{gold:6}, cool:40, info:'un-exile a unit · cd 40s', act:'reclaim'},
+  famine:{n:'Famine', cat:'ability', rar:'R', buy:9, cost:{food:6}, cool:45, info:'kill an enemy worker · cd 45s'},
   /* market — buildings */
   tower:{n:'Watchtower', cat:'building', rar:'C', buy:5, cost:{wood:8}, hp:6, info:'1 grn rng 2 · hp 6'},
   proad:{n:'Paved Road', cat:'building', rar:'R', buy:8, cost:{wood:8}, hp:4, info:'road · +1 move through'},
@@ -10833,12 +10880,15 @@ const ABBR = {
   ram:'RAM--', knight:'KNGHT', treb:'TREB-', sapper:'SAPPR', champ:'CHAMP', medic:'MEDIC',
   eng:'ENGNR', bearer:'BEARR',
   droad:'DROAD', maa:'MENAT', charge:'CHARG', proad:'PROAD', sgate:'SGATE',
+  moveup1:'MVUP1', moveup2:'MVUP2', atkup1:'ATUP1', atkup2:'ATUP2',
 };
 /* one physical card per copy: owner(1) + design(5) + copy(2) */
 const BYCODE = {}; for(const k in ABBR) BYCODE[ABBR[k]] = k;
 function codeFor(id, seat, copy){ return String(seat + 1) + ABBR[id] + String(copy || 1).padStart(2, '0'); }
 
 const CATS = {building:'Buildings', unit:'Units', ability:'Abilities'};
+/* 'upgrade' is deliberately absent: upgrades are supply-only, and the market browse
+   screen walks CATS. */
 const SUBGRP = {
   unit:    [['military','Military'], ['support','Support'], ['worker','Workers']],
   ability: [[null,'Abilities'], ['filler','Filler']],
@@ -10849,7 +10899,7 @@ const SUBGRP = {
    config in localStorage, and Object.assign(def(), saved) let that old config win — so a
    player who started on Version A kept Version A's starting resources for ever, silently.
    The version tag is what lets a stale config be recognised and dropped. */
-const RULES_VER = 'B2';
+const RULES_VER = 'B2.2';
 
 function def(){ return {
   ver:RULES_VER,
@@ -10859,70 +10909,74 @@ function def(){ return {
      build-up phase entirely. */
   start:{wood:30, food:10, gold:3},
   hqHealth:20,
-  /* Recall is never free. The FLOOR is the one number that matters — the early tiers are
-     paid about once a game whatever they cost, because your hand rarely empties. */
-  recallInterval:20, recallFloor:2, recallNear:4, recallMid:6, recallFar:8,
+  /* Abilities are kept, not spent: four slots, each with its own cooldown. Two of them
+     arrive filled, which is why the game opens with something to do. */
+  abilitySlots:4,
   marketRefresh:4,
   cooldown:1, freeze:5, target:30,
 };}
 
 function newPlayer(cfg, name, seat){
-  const owned = {}, pers = {}, hand = {};
-  /* Refresh B: you start holding your whole hand, and it is exactly the three
-     workstations. Nothing to draw, nothing to scan — the app already knows. */
-  for(const id in DB) if(DB[id].start){
-    owned[id] = DB[id].start;
-    for(let k = 1; k <= DB[id].start; k++) hand[codeFor(id, seat, k)] = id;
+  const owned = {}, pers = {}, cards = {}, abil = [];
+  for(const id in DB) if(DB[id].pers) pers[id] = DB[id].pers;     // your own stacks
+  /* You open with Move and Attack already in two of your four ability slots. They come
+     off your own stack, so the next copy you buy is the SECOND rung of the ladder. */
+  for(const id in DB) if(DB[id].start && DB[id].cat === 'ability'){
+    const code = codeFor(id, seat, 1);
+    abil.push({id, code, cd:0, uses:0});
+    owned[id] = 1; cards[code] = 1;
+    if(pers[id]) pers[id]--;
   }
-  for(const id in DB) if(DB[id].pers)  pers[id]  = DB[id].pers;   // your own stacks
   return {
-    name, owned, pers, board:[], cards:{}, hand, discard:{}, units:[],
+    name, owned, pers, board:[], cards, units:[], abil, upg:{},
     res:{wood:cfg.start.wood, food:cfg.start.food, gold:cfg.start.gold},
     incAdj:{wood:0, food:0, gold:0},
     earned:{wood:0, food:0, gold:0}, spent:{wood:0, food:0, gold:0},
-    hp:cfg.hqHealth, recallT:cfg.recallInterval, cd:0, frozen:0,
-    plays:0, buys:0, recalls:0, exiled:0, foodOnRecall:0, goldOnBuys:0, woodOnBuys:0,
+    hp:cfg.hqHealth, cd:0, frozen:0,
+    plays:0, buys:0, exiled:0, goldOnBuys:0, woodOnBuys:0,
     goldOnRefresh:0, undo:[],
   };
 }
 
-/* A game opens in 'setup': paused, with both hands empty. It cannot start until each
-   player has scanned their opening hand, because the play/draw distinction below rests
-   on the app knowing what is in hand. */
+/* Setup is only a ready check: there is nothing to deal and nothing to scan. Both
+   players lay out their supply, put Move and Attack in front of them, and tap Start. */
 function newGame(cfg){
   return { cfg, clock:0, pausedTime:0, paused:true, pause:null, speed:1, phase:'setup',
     players:[newPlayer(cfg,'Player 1',0), newPlayer(cfg,'Player 2',1)], log:[] };
 }
 
-function handCount(p){ let n = 0; for(const k in (p.hand || {})) n++; return n; }
-/* which physical copies of a design are in hand right now */
-function handHas(p, id){
-  const out = [];
-  for(const code in (p.hand || {})) if(p.hand[code] === id) out.push(code);
-  return out;
+/* An upgraded cooldown. The cuts add up, so both Move upgrades is 60% off rather than
+   40% — which is what makes the second one worth its price. */
+function coolFor(p, id){
+  const base = (DB[id] && DB[id].cool) || 0;
+  const cut = Math.min(0.9, (p.upg && p.upg[id]) || 0);
+  return Math.round(base * (1 - cut) * 10) / 10;
 }
+
+/* Ability slots: the only cards a player holds rather than deploys. */
+function abilSlot(p, code){ return (p.abil || []).find(a => a.code === code) || null; }
+function abilByDesign(p, id){ return (p.abil || []).find(a => a.id === id) || null; }
+function abilFree(p, cfg){ return Math.max(0, (cfg.abilitySlots || 4) - (p.abil || []).length); }
 /* Nothing to scan any more — the opening hand is known — so setup exists only so both
    players can look up before a real-time clock starts running. */
 function setupDone(){ return true; }
 
 function hasFlag(p, flag){ return p.board.some(b => DB[b.id].flag === flag); }
 
-/* a state saved before the personal market existed has no stacks — fill them in */
 function fixPlayer(p){
   if(!p.pers){ p.pers = {}; for(const id in DB) if(DB[id].pers) p.pers[id] = DB[id].pers; }
   /* cards maps a PHYSICAL card's printed code to its owner. Market and worker cards
      start unowned, so this is the only record of who bought which copy — without it a
      scan of MSKIRM02 cannot say whose Skirmisher it is. */
   if(!p.cards) p.cards = {};
-  /* hand maps a printed code to its design, for the cards this player is holding RIGHT
-     NOW. It is the difference between a scan meaning "I drew this" and "I played this". */
-  if(!p.hand) p.hand = {};
-  /* discard is the other half of the recall loop: everything bought, and every action
-     already spent. Keyed by printed code so recall hands back the exact cards. */
-  if(!p.discard) p.discard = {};
   /* units holds what is DEPLOYED on the table, so an attack can take a named one off it.
      Buildings live in board; workers live as codes on the building they staff. */
   if(!Array.isArray(p.units)) p.units = [];
+  /* abil is the four slots in front of you. Each carries its own cooldown, which is the
+     only thing limiting how often you act. */
+  if(!Array.isArray(p.abil)) p.abil = [];
+  if(!p.upg) p.upg = {};
+  p.abil.forEach(a => { if(typeof a.cd !== 'number') a.cd = 0; });
   if(Array.isArray(p.board)) p.board.forEach(b => { if(!Array.isArray(b.staff)) b.staff = []; });
   return p;
 }
@@ -10949,18 +11003,6 @@ function effCost(p, id){
 
 function afford(p, cost){ return RES.every(r => !cost[r] || p.res[r] >= cost[r] - 1e-9); }
 
-function discardCount(p){ let n = 0; for(const k in (p.discard || {})) n++; return n; }
-
-/* Never zero. The floor is what you pay once the timer has run out; the three tiers
-   above it are the impatience premium. */
-function recallCost(p, cfg){
-  if(!p.recalls) return 0;              // the first one of the game is on the house
-  const left = Math.max(0, p.recallT) / cfg.recallInterval;
-  if(left <= 0)     return cfg.recallFloor;
-  if(left > 2/3)    return cfg.recallFar;
-  if(left > 1/3)    return cfg.recallMid;
-  return cfg.recallNear;
-}
 
 function advance(G, dt){
   G.clock += dt;
@@ -10970,8 +11012,10 @@ function advance(G, dt){
       const inc = income(p, G.cfg);
       for(const r of RES){ const g = inc[r] * dt / 60; p.res[r] += g; p.earned[r] += g; }
     }
-    p.recallT -= dt;                     // runs negative; the cost floors out at zero
     p.cd = Math.max(0, p.cd - dt);
+    /* Each ability runs its own timer. Frozen players stop cooling down — being frozen
+       should cost you tempo, not just income. */
+    if(p.frozen <= 0) (p.abil || []).forEach(a => { a.cd = Math.max(0, (a.cd || 0) - dt); });
   }
 }
 
@@ -10986,22 +11030,6 @@ function undoLast(p){
   return e.label;
 }
 
-function actRecall(G, i){
-  const p = G.players[i];
-  if(p.frozen > 0) return null;
-  const n = discardCount(p);
-  if(!n) return null;
-  const c = recallCost(p, G.cfg);
-  if(p.res.food < c) return null;
-  snap(p, 'recall');
-  if(c){ p.res.food -= c; p.spent.food += c; p.foodOnRecall += c; }
-  for(const code in p.discard) p.hand[code] = p.discard[code];
-  p.discard = {};
-  const early = p.recallT > 0, first = !p.recalls;
-  p.recallT = G.cfg.recallInterval; p.recalls++;
-  return `recalled ${n} card${n === 1 ? '' : 's'} ` +
-         (first ? '— first one free' : `for ${c} Food${early ? ' (early)' : ''}`);
-}
 
 /* The market row is five face-up cards on the table, not something the app models — so
    this charges the fee, says so, and lets the players deal the new row themselves. That
@@ -11014,38 +11042,37 @@ function actRefreshMarket(G, i){
   return `refreshed the market for ${c} Gold — trash all 5 and deal 5 new`;
 }
 
-/* returns {log, follow} — follow is a sub-screen the UI must show next */
-function actPlay(G, i, id, opts){
-  const p = G.players[i], c = DB[id];
-  if(!p.owned[id]) return null;
-  const cost = effCost(p, id);
+/* ---- Using an ability -----------------------------------------------------
+   An ability is a card that lives in front of you. Scan it, pay its Food, and it is
+   unavailable until its own cooldown runs out — then scan it again. That is the whole
+   loop, and it is why there is no hand and no discard any more.
+   Returns {log, follow, hold, wait} — the same shape the UI already knows how to act on. */
+function actUse(G, i, slot){
+  const p = G.players[i], a = typeof slot === 'number' ? p.abil[slot] : slot;
+  if(!a) return null;
+  const c = DB[a.id];
+  if(a.cd > 0) return null;                     // still cooling
+  if(p.frozen > 0) return null;
+  const cost = effCost(p, a.id);
   if(!afford(p, cost)) return null;
 
-  snap(p, 'play ' + c.n);
+  snap(p, 'use ' + c.n);
   RES.forEach(r => { if(cost[r]){ p.res[r] -= cost[r]; p.spent[r] += cost[r]; } });
+  a.cd = coolFor(p, a.id) || G.cfg.cooldown;
+  a.uses = (a.uses || 0) + 1;
   p.cd = G.cfg.cooldown; p.plays++;
 
   const cs = RES.filter(r => cost[r]).map(r => `${cost[r]} ${r}`).join(', ') || 'free';
+  const tail = ` (${cs} · back in ${a.cd}s)`;
 
-  /* opts.code is the printed code of the physical card being played. Recording it is
-     what lets a later scan say "this exact Lumber Camp", not "a Lumber Camp". */
-  const code = (opts && opts.code) || null;
-  /* Buildings and units leave your hand for good — they are on the table now. Actions
-     come back round through the discard, which is what makes owning a second Attack
-     literally double how often you can attack. */
-  if(c.cat === 'building'){ p.board.push({id, code, workers:0, staff:[]}); return {log:`built ${c.n} (${cs})`}; }
-  if(code && c.cat !== 'building' && c.cat !== 'unit') p.discard[code] = id;
-  if(c.gain){ RES.forEach(r => { if(c.gain[r]) p.res[r] += c.gain[r]; }); return {log:`cashed ${c.n}`}; }
-  if(c.act === 'worker'){ return {log:`played Worker (${cs})`, follow:'worker'}; }
-  if(c.act === 'reclaim'){ return {log:`played Reclaim (${cs})`, follow:'reclaim'}; }
+  if(c.act === 'reclaim') return {log:`used Reclaim${tail}`, follow:'reclaim'};
   if(c.act === 'freeze'){
     G.players[1-i].frozen = G.cfg.freeze;
-    return {log:`played ${c.n} (${cs}) — ${G.players[1-i].name} frozen ${G.cfg.freeze}s`};
+    return {log:`used ${c.n}${tail} — ${G.players[1-i].name} frozen ${G.cfg.freeze}s`};
   }
-  if(c.act === 'attack'){ return {log:`played ${c.n} (${cs})`, hold:`Attack — ${p.name} · scan anything destroyed`}; }
-  if(c.pauseFor) return {log:`played ${c.n} (${cs})`, wait:c.pauseFor};
-  if(c.cat === 'unit'){ p.units.push({id, code}); return {log:`deployed ${c.n} (${cs})`}; }
-  return {log:`played ${c.n} (${cs})`};
+  if(c.act === 'attack') return {log:`used ${c.n}${tail}`, hold:`Attack — ${p.name} · scan anything destroyed`};
+  if(c.pauseFor) return {log:`used ${c.n}${tail}`, wait:c.pauseFor};
+  return {log:`used ${c.n}${tail}`};
 }
 
 function actStaff(G, i, bIdx, workerCode){
@@ -11086,7 +11113,7 @@ function actLoseUnit(G, i, uIdx){
   p.units.splice(uIdx, 1);
   const id = u.id;
   if(p.owned[id]){ p.owned[id]--; if(!p.owned[id]) delete p.owned[id]; }
-  if(u.code){ delete p.cards[u.code]; delete p.hand[u.code]; }
+  if(u.code) delete p.cards[u.code];
   p.exiled++;
   return `${DB[id].n} destroyed — exiled from the deck`;
 }
@@ -11097,7 +11124,7 @@ function actLoseWorker(G, i, bIdx, sIdx){
   snap(p, 'worker killed');
   const code = (b.staff || []).splice(sIdx, 1)[0];
   b.workers = Math.max(0, b.workers - 1);
-  if(code){ delete p.cards[code]; delete p.hand[code]; }
+  if(code) delete p.cards[code];
   if(p.owned.worker){ p.owned.worker--; if(!p.owned.worker) delete p.owned.worker; }
   p.exiled++;
   return `worker at ${DB[b.id].n} killed (${b.workers}/${DB[b.id].cap})`;
@@ -11144,43 +11171,151 @@ function buyLadder(id){
    your card count and then exist nowhere — unrecallable, unplayable. So it goes into the
    discard under a placeholder key, and the first scan of a real copy of that design takes
    the placeholder's place. Self-healing, and it covers a missed scan just as well. */
-let phSeq = 0;
-function placeholder(id){ return '?' + id + '-' + (++phSeq); }
-function isPlaceholder(code){ return code.charAt(0) === '?'; }
-
 /* A worker is a worker. The twenty printed copies carry no owner and are not worth
    tracking individually, so they are never stamped to a specific card — any copy of a
    fungible design answers for any other. */
 function fungible(id){ return !!(DB[id] && DB[id].fung); }
-function anyOfDesign(pile, id){ for(const k in pile) if(pile[k] === id) return k; return null; }
+/* ---- One price, paid once -------------------------------------------------
+   Buying used to be step one of three: pay, wait for a recall, then pay again to put the
+   thing on the table. Now the purchase price IS the deploy price, added together and
+   charged in whatever currencies the two halves were in. A Spearman is 3 Wood and 5 Food,
+   and when you have paid it the Spearman is on the battlefield.
 
-function claimPlaceholder(p, id, code){
-  for(const k in p.hand)    if(isPlaceholder(k) && p.hand[k] === id){
-    delete p.hand[k]; p.hand[code] = id; p.cards[code] = 1; return 'hand'; }
-  for(const k in p.discard) if(isPlaceholder(k) && p.discard[k] === id){
-    delete p.discard[k]; p.discard[code] = id; p.cards[code] = 1; return 'discard'; }
+   Abilities are the exception: they are kept rather than spent, so their Food cost is
+   charged every time you USE them instead of once when you buy them. */
+/* Native supply designs — the ones printed with a stack of their own — merge their buy
+   price into their deploy price. A card BOUGHT FROM THE MARKET does not: its Gold was paid
+   at the market row, and what is left to pay is the deploy cost alone. That is the whole
+   point of the market being a two-step purchase: Gold buys you the option, and you spend
+   the Food later, when you can afford it. */
+function nativeSupply(id){ return !!(DB[id] && DB[id].pers); }
+function inSupply(p, id){ return (p.pers[id] || 0) > 0; }
+
+function fullPrice(p, id){
+  const c = DB[id], out = {wood:0, food:0, gold:0};
+  if(nativeSupply(id)){
+    const n = buyCost(p, id);
+    if(n) out[buyRes(c)] += n;
+  }
+  if(c.cat !== 'ability'){
+    const d = effCost(p, id);
+    RES.forEach(r => { if(d[r]) out[r] += d[r]; });
+  }
+  return out;
+}
+
+/* What the market row charges: the Gold on the card, and nothing else. */
+function mktPrice(c){ const out = {wood:0, food:0, gold:0}; out[buyRes(c)] = c.buy || 0; return out; }
+function priceText(pr){
+  const s = RES.filter(r => pr[r]).map(r => `${pr[r]} ${r.charAt(0).toUpperCase() + r.slice(1)}`).join(' + ');
+  return s || 'free';
+}
+function canAfford(p, pr){ return RES.every(r => p.res[r] >= pr[r] - 1e-9); }
+
+/* Why a buy is refused, in words, so the toast can say it rather than just beeping. */
+/* Buying off the shared row. It never deploys anything — the card joins your supply and
+   waits there until you can pay to put it out. */
+function acqBlocked(G, i, id){
+  const p = G.players[i], c = DB[id];
+  if(c.retired) return `${c.n} is not used in these rules`;
+  if(!c.buy) return `${c.n} is not for sale`;
+  if(!canAfford(p, mktPrice(c))) return `Need ${priceText(mktPrice(c))} for ${c.n}`;
   return null;
 }
-function actBuy(G, i, id, opts){
-  const p = G.players[i], c = DB[id], r = buyRes(c), price = buyCost(p, id);
-  if(!c.buy || p.res[r] < price) return null;
-  if(c.pers && !(p.pers[id] > 0)) return null;          // your stack is empty
+
+function actAcquire(G, i, id, opts){
+  const p = G.players[i], c = DB[id];
+  if(acqBlocked(G, i, id)) return null;
+  const pr = mktPrice(c);
   snap(p, 'buy ' + c.n);
-  p.res[r] -= price; p.spent[r] += price; p.buys++;
-  if(r === 'gold') p.goldOnBuys += price; else p.woodOnBuys += price;
-  p.owned[id] = (p.owned[id] || 0) + 1;   // owned is the census of cards you possess
-  if(opts && opts.code && !fungible(id)){ p.cards[opts.code] = 1; p.discard[opts.code] = id; }
-  else p.discard[placeholder(id)] = id;   // tapped, or fungible: any copy will answer
-  const R = r.charAt(0).toUpperCase() + r.slice(1);
-  if(c.pers){
-    p.pers[id]--;
-    /* Lettered stacks are sorted cheapest-first on the table, so the copy you just took
-       off the top has a letter — say it, and the player can see the card in their hand is
-       the one the app charged them for. */
-    const nm = c.seq ? `${c.n} ${SEQ.charAt(c.pers - 1 - p.pers[id])}` : c.n;
-    return `bought ${nm} from your stack for ${price} ${R} (${p.pers[id]} left)`;
+  RES.forEach(r => { if(pr[r]){ p.res[r] -= pr[r]; p.spent[r] += pr[r]; } });
+  p.buys++; p.cd = G.cfg.cooldown;
+  const br = buyRes(c);
+  if(br === 'gold') p.goldOnBuys += c.buy; else p.woodOnBuys += c.buy;
+  p.pers[id] = (p.pers[id] || 0) + 1;          // it is one of your stacks now
+  p.owned[id] = (p.owned[id] || 0) + 1;
+  if(opts && opts.code) p.cards[opts.code] = 1;
+  const left = priceText(fullPrice(p, id));
+  return {log:`bought ${c.n} — ${priceText(pr)} — into your supply` +
+              (left === 'free' ? ', ready to deploy' : `, ${left} to deploy`)};
+}
+
+function buyBlocked(G, i, id){
+  const p = G.players[i], c = DB[id];
+  if(c.retired) return `${c.n} is not used in these rules`;
+  if(!inSupply(p, id)) return c.upg ? `${c.n} is already spent`
+    : nativeSupply(id) ? `Your ${c.n} stack is empty`
+    : `${c.n} is not in your supply — buy it from the market first`;
+  if(c.upg && !abilByDesign(p, c.upg)) return `You have no ${DB[c.upg].n} to upgrade`;
+  if(c.cat === 'ability' && !abilFree(p, G.cfg))
+    return `All ${G.cfg.abilitySlots} ability slots are full — retire one first`;
+  if(!canAfford(p, fullPrice(p, id))) return `Need ${priceText(fullPrice(p, id))} for ${c.n}`;
+  return null;
+}
+
+function actBuy(G, i, id, opts){
+  const p = G.players[i], c = DB[id];
+  if(buyBlocked(G, i, id)) return null;
+  const pr = fullPrice(p, id);
+
+  snap(p, 'buy ' + c.n);
+  RES.forEach(r => { if(pr[r]){ p.res[r] -= pr[r]; p.spent[r] += pr[r]; } });
+  p.buys++; p.cd = G.cfg.cooldown;
+  if(nativeSupply(id)){
+    const br = buyRes(c), bn = buyCost(p, id);
+    if(bn){ if(br === 'gold') p.goldOnBuys += bn; else p.woodOnBuys += bn; }
+    p.owned[id] = (p.owned[id] || 0) + 1;
   }
-  return `bought ${c.n} for ${price} ${R}`;
+  /* A market card was already counted as owned when it was bought off the row. */
+
+  const code = (opts && opts.code && !fungible(id)) ? opts.code : null;
+  if(code) p.cards[code] = 1;
+
+  const nm = c.n;
+  p.pers[id]--;
+  const free = priceText(pr) === 'free';
+  const paid = free ? nm : `${nm} — ${priceText(pr)}`;
+
+  /* An upgrade is consumed on the spot: it changes a number and leaves the game. */
+  if(c.upg){
+    const was = coolFor(p, c.upg);          // what it was BEFORE this upgrade, not the base
+    p.upg[c.upg] = (p.upg[c.upg] || 0) + c.cut;
+    const now = coolFor(p, c.upg);
+    const slot = abilByDesign(p, c.upg);
+    if(slot) slot.cd = Math.min(slot.cd, now);   // never leave it hotter than its new ceiling
+    p.owned[id] = (p.owned[id] || 0) - 1;        // it is not a card you possess
+    if(!p.owned[id]) delete p.owned[id];
+    if(code) delete p.cards[code];
+    return {log:`bought ${paid} — ${DB[c.upg].n} cooldown ${was}s → ${now}s · trash the card`};
+  }
+
+  /* Straight onto the table. No discard, no recall, no second payment. */
+  if(c.cat === 'ability'){
+    p.abil.push({id, code, cd:0, uses:0});
+    return {log:`${free ? 'took up' : 'bought'} ${paid} — in an ability slot, ready to use`};
+  }
+  if(c.cat === 'building'){
+    p.board.push({id, code, workers:0, staff:[]});
+    return {log:`built ${paid}`};
+  }
+  if(c.act === 'worker'){
+    return {log:`hired a Worker — ${priceText(pr)}`, follow:'worker', code};
+  }
+  p.units.push({id, code});
+  return {log:`deployed ${paid}`};
+}
+
+/* Four slots and nine market abilities means you will want to swap. Retiring one puts it
+   out of play — the card goes back in the box, not back on the stack. */
+function actRetire(G, i, slot){
+  const p = G.players[i], a = p.abil[slot];
+  if(!a) return null;
+  snap(p, 'retire ability');
+  p.abil.splice(slot, 1);
+  if(p.owned[a.id]){ p.owned[a.id]--; if(!p.owned[a.id]) delete p.owned[a.id]; }
+  if(a.code) delete p.cards[a.code];
+  p.exiled++;
+  return `retired ${DB[a.id].n} — slot free`;
 }
 
 function actLoseBuilding(G, i, bIdx){
@@ -11192,12 +11327,12 @@ function actLoseBuilding(G, i, bIdx){
   let lost = 0;
   for(const code of (b.staff || [])){
     lost++;
-    if(code){ delete p.cards[code]; delete p.hand[code]; }
+    if(code) delete p.cards[code];
     if(p.owned.worker){ p.owned.worker--; if(!p.owned.worker) delete p.owned.worker; }
   }
   if(!lost) lost = b.workers || 0;
   p.exiled += lost;
-  return `lost ${DB[b.id].n} — back to discard` + (lost ? ` · ${lost} worker${lost === 1 ? '' : 's'} exiled` : '');
+  return `lost ${DB[b.id].n}` + (lost ? ` · ${lost} worker${lost === 1 ? '' : 's'} exiled` : '');
 }
 
 /* Units are exiled by the rules, but the tracker no longer asks about it — there was no
@@ -11362,13 +11497,14 @@ function applyDoc(raw, force){
      empty value. Object.assign skips absent keys, so without this the receiver would
      keep showing a building its owner had already lost. Reset the collections first,
      then let the snapshot fill in whatever it actually carries. */
-  const EMPTY = {board:[], owned:{}, pers:{}, cards:{}, hand:{}, discard:{}, units:[]};
+  const EMPTY = {board:[], owned:{}, pers:{}, cards:{}, units:[], abil:[]};
   (d.players || []).forEach((sp, i) => {
     const t = G.players[i], keep = t.undo;
     for(const k in EMPTY) if(!(k in sp)) t[k] = Array.isArray(EMPTY[k]) ? [] : {};
     Object.assign(t, sp);
     if(!Array.isArray(t.board)) t.board = [];
     if(!Array.isArray(t.units)) t.units = [];
+    if(!Array.isArray(t.abil))  t.abil  = [];
     t.undo = keep;
     fixPlayer(t);
   });
@@ -11446,8 +11582,10 @@ function release(){
   renderPause();
 }
 
+/* A merged price can run to all three currencies, so this is the one place that draws a
+   price and it has to cope with one, two or three chips without wrapping badly. */
 function costHTML(cost){
-  const parts = RES.filter(r => cost[r]).map(r => `<span class="chip"><i class="c-${r}"></i>${cost[r]}</span>`);
+  const parts = RES.filter(r => cost && cost[r]).map(r => `<span class="chip"><i class="c-${r}"></i>${cost[r]}</span>`);
   return parts.length ? `<span class="costs">${parts.join('')}</span>` : `<span class="free">free</span>`;
 }
 
@@ -11460,7 +11598,8 @@ function screenHTML(i){
   /* buying asks WHERE first. Your own supply and the shared market are separate piles on
      the table, so mixing them into one list only ever caused mis-taps. */
   if(s === 'src'){
-    const left = Object.keys(DB).filter(id => DB[id].pers).reduce((n,id) => n + (p.pers[id]||0), 0);
+    const left = Object.keys(DB).filter(id => DB[id].pers || (p.pers[id]||0) > 0)
+                   .reduce((n,id) => n + (p.pers[id]||0), 0);
     const rc2 = G.cfg.marketRefresh;
     h += `<div class="scrhead"><h3>Buy a card</h3>
       <button class="btn sm" data-act="close">Cancel</button></div>
@@ -11474,27 +11613,30 @@ function screenHTML(i){
   else if(s === 'supply'){
     h += `<div class="scrhead"><h3>Your supply</h3>
       <button class="btn sm" data-act="back">Back</button></div><div class="cardlist">`;
-    for(const id of Object.keys(DB).filter(x => DB[x].pers)){
-      const c = DB[id], left = p.pers[id] || 0, br = buyRes(c), price = buyCost(p, id);
-      const ok = left > 0 && p.res[br] >= price;
-      h += `<button class="cbtn own" data-act="buy" data-id="${id}" ${ok?'':'disabled'}>
-        <span class="cn">${c.n}</span>
-        <span class="ci">${c.info || ''}</span>
+    /* Anything you have bought off the market row is in here too, waiting for its deploy
+       cost — which is the whole reason the market is now a two-step purchase. */
+    for(const id of Object.keys(DB).filter(x => DB[x].pers || (p.pers[x] || 0) > 0)){
+      const c = DB[id], left = p.pers[id] || 0, pr = fullPrice(p, id), why = buyBlocked(G, i, id);
+      /* Hide a row that can never be acted on again: a market card you have deployed,
+         and Move and Attack, which were never for sale and now live in your slots. An
+         exhausted stack you CAN still buy from stays, showing "out". */
+      if(!left && (!c.buy || !nativeSupply(id))) continue;
+      h += `<button class="cbtn own" data-act="buy" data-id="${id}" ${why ? 'disabled' : ''}>
+        <span class="cn">${c.n}${nativeSupply(id) ? '' : '<span class="rar r-C">bought</span>'}</span>
+        <span class="ci">${why && !/^Need/.test(why) ? why : (c.info || '')}</span>
         <span class="qty">${left ? left + ' left' : 'out'}</span>
-        <span class="chip"><i class="c-${br}"></i>${price}${
-          (c.buyAdd || c.buyStep) && left > 1 ? `<small style="opacity:.6">→${buyLadder(id).slice(c.pers - left + 1).join('/')}</small>` : ''
-        }</span></button>`;
+        ${costHTML(pr)}</button>`;
     }
     h += `</div>`;
   }
 
   else if(s === 'cat'){
-    h += `<div class="scrhead"><h3>${nav.mode === 'buy' ? 'Buy from Market' : 'Play a card'}</h3>
-      <button class="btn sm" data-act="${nav.mode === 'buy' ? 'back' : 'close'}">${nav.mode === 'buy' ? 'Back' : 'Cancel'}</button></div>
+    h += `<div class="scrhead"><h3>Buy from Market</h3>
+      <button class="btn sm" data-act="back">Back</button></div>
       <div class="crumb">What kind of card?</div><div class="cats">`;
     for(const c in CATS) h += `<button class="btn big" data-act="cat" data-c="${c}">${CATS[c]}</button>`;
-    if(nav.mode === 'play') h += `<button class="btn" data-act="cat" data-c="custom">Something else&hellip;</button>`;
-    if(nav.mode === 'buy') h += `<button class="btn" data-act="mktrefresh" ${p.res.gold >= G.cfg.marketRefresh ? '' : 'disabled'}>Refresh the market &middot; ${G.cfg.marketRefresh}g</button>`;
+    h += `<button class="btn" data-act="cat" data-c="custom">Something else&hellip;</button>`;
+    h += `<button class="btn" data-act="mktrefresh" ${p.res.gold >= G.cfg.marketRefresh ? '' : 'disabled'}>Refresh the market &middot; ${G.cfg.marketRefresh}g</button>`;
     h += `</div>`;
   }
 
@@ -11510,30 +11652,21 @@ function screenHTML(i){
         if((c.sub || null) !== sub) return false;
         /* Playing is now strictly "what am I holding". p.owned is the census of cards
            you possess anywhere — hand, discard or table — and is the wrong question. */
-        return nav.mode === 'buy' ? (!!c.buy && !c.pers) : handHas(p, id).length > 0;
+        return !c.pers && !c.retired && !!c.buy;
       });
       if(!ids.length) continue;
       any = true;
       h += `<div class="grp">${label}</div>`;
       for(const id of ids){
         const c = DB[id];
-        if(nav.mode === 'buy'){
-          const br = buyRes(c), ok = p.res[br] >= c.buy;
-          h += `<button class="cbtn" data-act="buy" data-id="${id}" ${ok?'':'disabled'}>
-            <span class="cn">${c.n}<span class="rar r-${c.rar}">${c.rar}</span></span>
-            <span class="ci">${c.info || ''}</span>
-            <span class="chip"><i class="c-${br}"></i>${c.buy}</span></button>`;
-        } else {
-          const cost = effCost(p, id), ok = afford(p, cost), held = handHas(p, id);
-          h += `<button class="cbtn" data-act="play" data-id="${id}" data-code="${held[0] || ''}" ${ok?'':'disabled'}>
-            <span class="cn">${c.n}</span>
-            <span class="ci">${c.info || ''}</span>
-            <span class="qty">${held.length > 1 ? '×'+held.length : ''}</span>
-            ${costHTML(cost)}</button>`;
-        }
+        const pr = mktPrice(c), why = acqBlocked(G, i, id), later = fullPrice(p, id);
+        h += `<button class="cbtn" data-act="acq" data-id="${id}" ${why ? 'disabled' : ''}>
+          <span class="cn">${c.n}${c.rar ? `<span class="rar r-${c.rar}">${c.rar}</span>` : ''}</span>
+          <span class="ci">${c.info || ''}${priceText(later) === 'free' ? '' : ' · then ' + priceText(later) + ' to deploy'}</span>
+          ${costHTML(pr)}</button>`;
       }
     }
-    if(!any) h += `<div class="empty">${nav.mode === 'buy' ? 'Nothing here.' : 'Nothing of this type in hand. Recall, or buy some.'}</div>`;
+    if(!any) h += `<div class="empty">Nothing of this kind in the market.</div>`;
     h += `</div>`;
   }
 
@@ -11594,24 +11727,6 @@ function screenHTML(i){
         <button class="btn pri" data-act="docustom">Confirm</button></div>`;
   }
 
-  else if(s === 'hand'){
-    const entries = Object.keys(p.hand || {}).map(code => [code, p.hand[code]]);
-    h += `<div class="scrhead"><h3>Your hand — ${entries.length} card${entries.length === 1 ? '' : 's'}</h3>
-      <button class="btn sm" data-act="close">Close</button></div>
-      <p class="note">What the app believes you are holding. It only needs touching if a
-      scan was missed — tap a card to drop it from the list without playing it.</p>
-      <div class="cardlist">`;
-    if(entries.length){
-      for(const [code, id] of entries){
-        const c = DB[id] || {n:id};
-        h += `<button class="cbtn" data-act="unhand" data-code="${code}">
-          <span class="cn">${c.n}</span>
-          <span class="ci">${c.info || ''}</span>
-          <span class="qty num">${code}</span></button>`;
-      }
-    } else h += `<div class="empty">Nothing tracked yet.</div>`;
-    h += `</div>`;
-  }
 
   return h + `</div>`;
 }
@@ -11624,8 +11739,7 @@ function renderPanel(i){
   const ro = netMode() && NET.seat !== i;          // opponent's panel on a linked device
 
   let h = `<div class="phead"><span class="pdot"></span><h2>${p.name}${ro ? '' : (netMode() ? ' <span class="tag">you</span>' : '')}</h2>`
-    + (ro ? '' : `<button class="handchip" data-act="hand" title="What the app thinks you are holding">hand <b data-handn>${handCount(p)}</b></button>`
-              + `<span class="handchip dim" title="Waiting to be recalled">discard <b data-discn>${discardCount(p)}</b></span>`)
+    + (ro ? '' : `<span class="handchip dim" title="Buildings and units you have on the table">on table <b data-tablen>${p.board.length + p.units.length}</b></span>`)
     + `<span class="meta" id="st${i}"></span></div>`;
 
   h += `<div class="res">` + RES.map(r =>
@@ -11666,28 +11780,20 @@ function renderPanel(i){
     h += screenHTML(i);
   } else if(G.phase === 'setup'){
     h += `<div class="setupbox">
-        <div class="setupn"><b data-handn>${handCount(p)}</b><span>in hand</span></div>
-        <p class="note" style="margin:0">Lumber Camp, Farm and Gold Mine. Build them when
-        you can afford them — everything else is bought.</p>
+        <div class="setupn"><b>${(p.abil || []).length}</b><span>abilities ready</span></div>
+        <p class="note" style="margin:0">Move and Attack sit in front of you. Everything
+        else — including your three workstations — is bought from your supply.</p>
       </div>`;
   } else {
-    /* Recall is a deliberate, paid choice, so unlike the draw readout it is a button
-       again. The bar fills as the timer runs down and the price drops. */
-    h += `<button class="drawbtn" data-act="recall" data-drawbtn>
-        <span class="dfill" data-drawfill></span>
-        <span class="dmk" style="left:33.33%"></span><span class="dmk" style="left:66.66%"></span>
-        <span class="dtxt">RECALL</span>
-        <span class="dsub" data-drawcost></span>
-      </button>`;
+    h += abilHTML(i);
     if(locked) h += `<div class="waitbar">${G.players[1-i].name} is playing &mdash; wait</div>`;
     else if(NET.on && NET.err) h += `<div class="waitbar">Link problem &mdash; open This device</div>`;
     h += `<div class="acts">
-        <button class="btn big pri wide" data-act="open" data-m="play" data-playbtn>
+        <button class="btn big pri wide" data-act="open" data-m="buy" data-playbtn>
           <span class="cdfill" data-cdfill></span>
-          <span class="blab">Play a Card</span>
+          <span class="blab">Buy &amp; Deploy</span>
           <span class="cdsub" data-cdlab></span>
         </button>
-        <button class="btn big wide" data-act="open" data-m="buy">Buy Card</button>
         <button class="btn danger wide" data-act="scr" data-s="lose">Building lost</button>
         <button class="btn wide" data-act="undo" data-undobtn>Undo</button>
       </div>`;
@@ -11699,6 +11805,39 @@ function renderPanel(i){
     const b = ev.target.closest('button[data-act]');
     if(b && !b.disabled) handle(i, b);
   };
+}
+
+/* Four slots in front of you. A slot is a button: tap it to use the ability, or scan the
+   card itself. The ring around it is the cooldown, which is the only thing rationing how
+   often you act now that there is no hand to run out of. */
+function abilHTML(i){
+  const p = G.players[i], slots = G.cfg.abilitySlots || 4;
+  let h = `<div class="abils" data-abils="${i}">`;
+  for(let k = 0; k < slots; k++){
+    const a = (p.abil || [])[k];
+    if(!a){
+      h += `<div class="abwrap"><div class="ab empty"><span class="abn">empty</span>
+        <span class="abi">buy an ability</span></div></div>`;
+      continue;
+    }
+    const c = DB[a.id], cost = effCost(p, a.id), full = coolFor(p, a.id);
+    const cut = (p.upg && p.upg[a.id]) || 0;
+    const cool = a.cd > 0, poor = !afford(p, cost), frozen = p.frozen > 0;
+    const ready = !cool && !poor && !frozen;
+    const nm = c.n;
+    h += `<div class="abwrap">
+      <button class="ab ${ready ? 'ready' : ''} ${cool ? 'cool' : ''}"
+        data-act="use" data-k="${k}" ${ready ? '' : 'disabled'}>
+        <span class="abfill" data-abfill="${k}" style="width:${cool ? (a.cd / (full || 1) * 100).toFixed(1) : 0}%"></span>
+        <span class="abn">${nm}${cut ? `<span class="abup">&minus;${Math.round(cut * 100)}%</span>` : ''}</span>
+        <span class="abi">${poor && !cool ? 'need ' + priceText(cost)
+          : `${c.info || ''}${full ? ' · ' + full + 's' : ''}`}</span>
+        <span class="abt num" data-abt="${k}">${cool ? a.cd.toFixed(1) + 's' : costHTML(cost)}</span>
+      </button>
+      <button class="abx" data-act="retire" data-k="${k}" title="Retire ${nm} and free the slot">&times;</button>
+    </div>`;
+  }
+  return h + `</div>`;
 }
 
 function renderBoth(){ renderPanel(0); renderPanel(1); }
@@ -11737,7 +11876,7 @@ function handleAct(i, b){
   if(a === 'open'){
     if(nav) return;                                   // someone else is mid-play
     if(p.frozen > 0){ sndDenied(); return; }
-    if(b.dataset.m === 'play' && p.cd > 0){ sndDenied(); return; }
+    if(p.cd > 0){ sndDenied(); scanSay(`Cooling down — ${p.cd.toFixed(1)}s`, true); return; }
     nav = {p:i, mode:b.dataset.m, screen:b.dataset.m === 'buy' ? 'src' : 'cat', cat:null};
     hold(`${b.dataset.m === 'buy' ? 'Buying a card' : 'Playing a card'} — ${p.name}`, null, false);
     renderBoth(); return;
@@ -11767,38 +11906,47 @@ function handleAct(i, b){
   }
   if(a === 'close'){ closeNav(i); return; }
 
-  if(a === 'hand'){
-    if(nav) return;
-    nav = {p:i, mode:'play', screen:'hand', cat:null};
-    hold(`Checking hand — ${p.name}`, null, false);
-    renderBoth(); return;
-  }
-  if(a === 'unhand'){
-    const code = b.dataset.code, id = p.hand && p.hand[code];
-    if(id){
-      snap(p, 'hand fix');
-      delete p.hand[code];
-      say(i, `dropped ${(DB[id] || {n:code}).n} from the tracked hand`);
+  /* Using an ability and buying a card are now the only two things that happen, and both
+     end the same way: a follow-up screen, a pause, or nothing. */
+  if(a === 'use' || a === 'retire'){
+    const k = +b.dataset.k;
+    if(a === 'retire'){
+      const r = actRetire(G, i, k);
+      if(!r){ sndDenied(); return; }
+      say(i, r); sndDenied(); scanSay(r, true);
+      renderBoth(); renderStats(); push(); return;
     }
-    renderPanel(i); renderPause(); return;
+    const r = actUse(G, i, k);
+    if(!r){ sndDenied(); return; }
+    say(i, r.log); sndScan(); scanSay(r.log);
+    if(r.follow){
+      nav = {p:i, mode:'play', screen:r.follow, cat:null};
+      hold(`Resolving — ${p.name}`, null, false);
+      renderBoth(); renderStats(); push(); return;
+    }
+    if(r.hold) hold(r.hold, null, true);
+    else if(r.wait) hold(`Resolving ${DB[p.abil[k] ? p.abil[k].id : 'move'].n} — ${p.name}`, r.wait, false);
+    renderBoth(); renderStats(); push(); return;
   }
 
-  if(a === 'play'){
-    /* Tapped rather than scanned, so pick a copy ourselves — otherwise the card would
-       leave the list but never leave the hand. */
-    const code = b.dataset.code || handHas(p, b.dataset.id)[0] || null;
-    const r = actPlay(G, i, b.dataset.id, {code});
-    if(!r) return;
-    if(code) delete p.hand[code];
-    say(i, r.log);
-    if(r.follow){ nav.screen = r.follow; nav.worker = code; renderPanel(i); renderStats(); return; }
-    nav = null;
-    if(r.hold) hold(r.hold, null, true);
-    else if(r.wait) hold(`Resolving ${DB[b.dataset.id].n} — ${p.name}`, r.wait, false);
-    else release();
-    renderPanel(0); renderPanel(1); renderStats(); return;
+  if(a === 'acq'){
+    const id = b.dataset.id, why = acqBlocked(G, i, id);
+    if(why){ sndDenied(); scanSay(why, true); return; }
+    const r = actAcquire(G, i, id);
+    if(!r){ sndDenied(); return; }
+    say(i, r.log); sndBuy(); scanSay(r.log);
+    closeNav(i); push(); return;
   }
-  if(a === 'buy'){ say(i, actBuy(G, i, b.dataset.id)); closeNav(i); return; }
+
+  if(a === 'buy'){
+    const id = b.dataset.id, why = buyBlocked(G, i, id);
+    if(why){ sndDenied(); scanSay(why, true); return; }
+    const r = actBuy(G, i, id);
+    if(!r){ sndDenied(); return; }
+    say(i, r.log); sndBuy(); scanSay(r.log);
+    if(r.follow){ nav.screen = r.follow; nav.worker = r.code || null; renderPanel(i); renderStats(); push(); return; }
+    closeNav(i); push(); return;
+  }
   if(a === 'staff'){ say(i, actStaff(G, i, +b.dataset.i, nav && nav.worker)); closeNav(i); return; }
   if(a === 'lose'){ say(i, actLoseBuilding(G, i, +b.dataset.i)); closeNav(i); return; }
   if(a === 'dorec'){ say(i, actReclaim(G, i, b.dataset.id)); closeNav(i); return; }
@@ -11817,7 +11965,6 @@ function handleAct(i, b){
     closeNav(i); return;
   }
 
-  if(a === 'recall'){ const r = actRecall(G, i); if(r){ sndDraw(); scanSay(r); } else sndDenied(); say(i, r); }
   if(a === 'adj'){ sndGain(); say(i, actAdjust(G, i, b.dataset.r, +b.dataset.d)); }
   if(a === 'hp')   say(i, actHp(G, i, +b.dataset.d));
   if(a === 'undo'){ const u = undoLast(p); say(i, u ? `undid: ${u}` : null); }
@@ -11847,15 +11994,15 @@ function renderStats(){
     ['Buildings up',  p => p.board.length],
     ['Cards played',  p => p.plays],
     ['Market buys',   p => p.buys],
-    ['In hand',       p => handCount(p)],
-    ['In discard',    p => discardCount(p)],
+    ['Abilities',     p => (p.abil || []).length + '/' + (G.cfg.abilitySlots || 4)],
+    ['Cooldown cuts', p => Object.keys(p.upg || {}).map(k =>
+                        `${DB[k].n} ${coolFor(p, k)}s`).join(', ') || '—'],
+    ['Ability uses',  p => (p.abil || []).reduce((n, a) => n + (a.uses || 0), 0)],
     ['Own stacks left', p => Object.keys(p.pers || {}).map(k => `${DB[k].n.split(' ')[0]} ${p.pers[k]}`).join(' · ')],
-    ['Recalls',       p => p.recalls || 0],
     ['HQ health',     p => p.hp + '/' + G.cfg.hqHealth],
     ['Wood earned',   p => fmt(p.earned.wood)],
     ['Food earned',   p => fmt(p.earned.food)],
     ['Gold earned',   p => fmt(p.earned.gold)],
-    ['Food on recalls', p => fmt(p.foodOnRecall || 0)],
     ['Gold on refreshes', p => fmt(p.goldOnRefresh || 0)],
     ['Gold on buys',  p => fmt(p.goldOnBuys)],
     ['Wood on stacks',p => fmt(p.woodOnBuys || 0)],
@@ -11931,26 +12078,24 @@ function tickRender(){
     const hqbox = document.getElementById('hq'+i);
     if(hqbox) hqbox.classList.toggle('hurt', p.hp < G.cfg.hqHealth);
 
-    /* recallT counts DOWN, so the bar fills as the price falls */
-    const left = Math.max(0, p.recallT) / G.cfg.recallInterval;
-    const f = el.querySelector('[data-drawfill]'); if(f) f.style.width = ((1 - left) * 100).toFixed(1) + '%';
-    const c = recallCost(p, G.cfg), dn = discardCount(p), ripe = p.recallT <= 0;
-    const canRec = dn > 0 && p.frozen <= 0 && p.res.food >= c;
-    const dc = el.querySelector('[data-drawcost]');
-    if(dc) dc.textContent = p.frozen > 0 ? 'frozen'
-      : dn === 0 ? 'discard empty'
-      : p.res.food < c ? `${dn} card${dn===1?'':'s'} · need ${c} Food`
-      : `${dn} card${dn===1?'':'s'} · ${c} Food${ripe ? '' : ' early'}`;
-    const db = el.querySelector('[data-drawbtn]');
-    if(db){
-      db.classList.toggle('free', ripe && canRec);
-      db.classList.toggle('cold', !canRec);
-      db.disabled = !canRec;
-    }
-    const hn = el.querySelector('[data-handn]');
-    if(hn) hn.textContent = handCount(p);
-    const dn2 = el.querySelector('[data-discn]');
-    if(dn2) dn2.textContent = discardCount(p);
+    /* Every ability runs its own timer, so the row repaints every frame rather than on
+       state changes — it is the only continuously moving thing on the panel now. */
+    (p.abil || []).forEach((a, k) => {
+      const cool = a.cd > 0.05, full = coolFor(p, a.id) || 1;
+      const bar = el.querySelector(`[data-abfill="${k}"]`);
+      if(bar) bar.style.width = cool ? Math.min(100, a.cd / full * 100).toFixed(1) + '%' : '0%';
+      const t = el.querySelector(`[data-abt="${k}"]`);
+      if(t && cool) t.textContent = a.cd.toFixed(1) + 's';
+      const btn = t && t.closest('.ab');
+      if(btn){
+        const ready = !cool && p.frozen <= 0 && afford(p, effCost(p, a.id));
+        btn.classList.toggle('cool', cool);
+        btn.classList.toggle('ready', ready);
+        btn.disabled = !ready;
+      }
+    });
+    const tn = el.querySelector('[data-tablen]');
+    if(tn) tn.textContent = p.board.length + p.units.length;
     const ub = el.querySelector('[data-undobtn]'); if(ub) ub.disabled = !p.undo.length;
 
     const pb = el.querySelector('[data-playbtn]');
@@ -12144,17 +12289,13 @@ function codeOwner(c){
   /* Only starter and personal-supply designs are owned by their printed prefix. A market
      card is anyone's until bought — which matters now that Wild has moved to the market
      while its printed copies still carry a 1 or a 2. */
-  const card = DB[c.id], mine = card && (card.start || card.pers);
+  const card = DB[c.id], mine = card && card.pers;
   if(mine && c.owner === '1') return 0;
   if(mine && c.owner === '2') return 1;
   for(let i = 0; i < 2; i++){ const cc = G.players[i].cards; if(cc && cc[c.code]) return i; }
-  if(DB[c.id] && DB[c.id].fung){
-    const order = netMode() ? [NET.seat, 1 - NET.seat] : [0, 1];
-    for(const i of order){
-      const p = G.players[i];
-      if(anyOfDesign(p.hand, c.id) || anyOfDesign(p.discard, c.id)) return i;
-    }
-  }
+  /* A worker card carries no owner at all, so on a linked device the seat answers for it
+     and on a shared one the HQ handshake has to. */
+  if(DB[c.id] && DB[c.id].fung && netMode()) return NET.seat;
   return -1;
 }
 
@@ -12182,10 +12323,9 @@ function onScan(raw){
     sndDenied();
     /* during setup there is no buy window to point them at — the real problem is that
        this card is not in anybody's starting deck */
-    scanSay(G.phase === 'setup' ? `${card.n} is not in the starting deck`
-      : (card.pers && fungible(c.id))
-        ? `Scan your HQ first — the app cannot tell whose ${card.n} this is`
-        : `Scan your HQ first to buy ${card.n}`, true);
+    scanSay((card.pers && fungible(c.id))
+      ? `Scan your HQ first — the app cannot tell whose ${card.n} this is`
+      : `Scan your HQ first to buy ${card.n}`, true);
     return;
   }
   if(netMode() && i !== NET.seat) return;     // the other tablet owns this scan
@@ -12200,49 +12340,39 @@ function onScan(raw){
      to whoever is attacking — dice go both ways, and the defender can kill the attacker. */
   if(G.paused && G.pause && G.pause.manual){ doScanLoss(i, c); return; }
 
-  if(buying >= 0){
+  /* The buy window is only for the SHARED ROW. A card already in your supply — native or
+     bought earlier — falls through to the deploy path below, so scanning it inside an open
+     window deploys it rather than charging you for it twice. */
+  if(buying >= 0 && !nativeSupply(c.id) && !G.players[i].cards[c.code]){
     if(buying !== i){ sndDenied(); scanSay(`That card belongs to Player ${i+1}`, true); return; }
-    if(!card.buy){ sndDenied(); scanSay(`${card.n} is not for sale`, true); return; }
-    if(G.players[i].cards[c.code]){ sndDenied(); scanSay(`That ${card.n} is already yours`, true); return; }
-    doScanBuy(i, c); return;
+    doMarketBuy(i, c); return;
   }
 
-  /* There is no drawing any more, so a scan is a play or an explanation of why not.
-     Where the card sits — hand, discard, table, or not yours at all — is the answer. */
+  /* Two things can happen to a card now. If it is one of the four sitting in front of
+     you, scanning it USES it. Otherwise scanning it BUYS it, and it goes straight onto
+     the battlefield. Nothing else — there is no hand to be in and no discard to wait in. */
   const pl = G.players[i];
-  if(pl.hand[c.code]){ doScanPlay(i, c); return; }
+  /* Match by PRINTED COPY, not by design. Matching by design meant scanning the Move B
+     you had not bought yet fired the Move A already in your slot — and then quietly
+     refused to sell you the second one. */
+  let slot = card.upg ? null : abilSlot(pl, c.code);
+  if(!slot && !card.upg){
+    /* A slot filled by tapping has no printed copy attached to it. The first scan of a
+       copy of that design claims it, the same self-healing the discard used to do. */
+    const orphan = (pl.abil || []).find(a => a.id === c.id && !a.code);
+    if(orphan){ orphan.code = c.code; pl.cards[c.code] = 1; slot = orphan; }
+  }
+  if(slot){ doScanUse(i, pl.abil.indexOf(slot)); return; }
 
-  /* Fungible designs answer by kind, not by copy, so look for any one of them. */
-  if(fungible(c.id)){
-    const inHand = anyOfDesign(pl.hand, c.id);
-    if(inHand){ doScanPlay(i, {owner:c.owner, id:c.id, copy:c.copy, code:inHand}); return; }
-    if(anyOfDesign(pl.discard, c.id)){
-      sndDenied(); scanSay(`${card.n} is in your discard — recall to get it back`, true); return;
-    }
-  }
-  const claimed = claimPlaceholder(pl, c.id, c.code);
-  if(claimed === 'hand'){ doScanPlay(i, c); return; }
-  if(claimed === 'discard'){
-    sndDenied(); scanSay(`${card.n} is in your discard — recall to get it back`, true);
-    renderBoth(); push(); return;
-  }
-  if(pl.discard[c.code]){ sndDenied(); scanSay(`${card.n} is in your discard — recall to get it back`, true); return; }
   if(findOnTable(i, c.code)){ sndDenied(); scanSay(`That ${card.n} is already on the table`, true); return; }
 
-  /* Not yours yet, and it comes off your own supply: that is a purchase, said plainly. */
-  if(card.pers){ doSupplyBuy(i, c); return; }
+  /* Your own supply needs no handshake — the stacks are in front of you. That now includes
+     anything you have already bought off the market row, which is sitting in your supply
+     waiting for its deploy cost. The shared row itself still wants the HQ. */
+  if(nativeSupply(c.id) || inSupply(pl, c.id)){ doScanBuy(i, c); return; }
 
   sndDenied();
   scanSay(`Scan your HQ to buy ${card.n}`, true);
-}
-
-/* Starter cards are in the deck from the first shuffle. Everything else — market,
-   worker stack, and your own personal stacks — has to be bought before it can be drawn,
-   and doScanBuy is what records that. */
-function ownsCard(i, c){
-  const p = G.players[i], card = DB[c.id];
-  if(p.cards && p.cards[c.code]) return true;
-  return !!(card && card.start && (c.owner === '1' || c.owner === '2'));
 }
 
 function doScanStaff(i, c){
@@ -12279,55 +12409,60 @@ function doScanLoss(i, c){
   renderBoth(); renderStats(); push();
 }
 
-/* Your own supply is a stack sitting in front of you, and picking a card off it is not
-   ambiguous the way a shared market row is — so it needs no HQ handshake and no window.
-   Scan it and it is bought. The market keeps the handshake, because the app cannot
-   otherwise tell which player is reaching for the shared row. */
-function doSupplyBuy(i, c){
+
+/* The market row charges Gold and hands you the card. It does not deploy anything: the
+   card goes into your supply, and you pay to put it out whenever you can afford to. */
+function doMarketBuy(i, c){
   const p = G.players[i], card = DB[c.id];
-  if(!(p.pers[c.id] > 0)){ sndDenied(); scanSay(`Your ${card.n} stack is empty`, true); return; }
-  const price = buyCost(p, c.id), r = buyRes(card);
-  if(p.res[r] < price){
-    sndDenied();
-    scanSay(`Need ${price} ${r.charAt(0).toUpperCase() + r.slice(1)} for ${card.n}`, true);
-    return;
-  }
-  const msg = actBuy(G, i, c.id, {code:c.code});
-  if(!msg){ sndDenied(); return; }
-  say(i, msg); sndBuy(); scanSay(msg + ' — into your discard');
+  if(p.frozen > 0){ sndDenied(); scanSay(`Frozen — ${p.frozen.toFixed(1)}s`, true); return; }
+  if(p.cd > 0){ sndDenied(); scanSay(`Cooling down — ${p.cd.toFixed(1)}s`, true); return; }
+  const why = acqBlocked(G, i, c.id);
+  if(why){ sndDenied(); scanSay(why, true); return; }
+  const r = actAcquire(G, i, c.id, {code:c.code});
+  if(!r){ sndDenied(); return; }
+  say(i, r.log); sndBuy(); scanSay(r.log);
+  if(buyOpen() >= 0) release();
   renderBoth(); renderStats(); push();
 }
 
+/* Scan it, pay once, it is on the table. The only fork is a Worker, which still has to
+   be told which building it is standing at. */
 function doScanBuy(i, c){
-  const card = DB[c.id], r = actBuy(G, i, c.id, {code:c.code});
-  if(!r){
-    sndDenied();
-    const need = (card.buyR || 'gold');
-    scanSay(card.pers && !(G.players[i].pers[c.id] > 0)
-      ? `Your ${card.n} stack is empty`
-      : `Need ${card.buy} ${need.charAt(0).toUpperCase() + need.slice(1)} for ${card.n}`, true);
-    return;
+  const p = G.players[i], card = DB[c.id];
+  if(p.frozen > 0){ sndDenied(); scanSay(`Frozen — ${p.frozen.toFixed(1)}s`, true); return; }
+  if(p.cd > 0){ sndDenied(); scanSay(`Cooling down — ${p.cd.toFixed(1)}s`, true); return; }
+  const why = buyBlocked(G, i, c.id);
+  if(why){ sndDenied(); scanSay(why, true); return; }
+  const r = actBuy(G, i, c.id, {code:c.code});
+  if(!r){ sndDenied(); return; }
+  say(i, r.log); sndBuy(); scanSay(r.log);
+  if(buyOpen() >= 0) release();
+  if(r.follow){
+    nav = {p:i, mode:'play', screen:r.follow, cat:null, worker:r.code || c.code};
+    hold(`Placing a worker — ${p.name}`, null, false);
   }
-  say(i, r); sndBuy(); scanSay(r + ' — into your discard');
-  release(); renderBoth(); renderStats(); push();
+  renderBoth(); renderStats(); push();
 }
 
-function doScanPlay(i, c){
-  const p = G.players[i], card = DB[c.id];
+function doScanUse(i, k){
+  const p = G.players[i], a = p.abil[k];
+  if(!a) return;
+  const card = DB[a.id];
   if(nav){ sndDenied(); scanSay('Finish the open menu first', true); return; }
   if(oppBusy()){ sndDenied(); return; }
   if(G.paused){ sndDenied(); scanSay('Game is paused', true); return; }
   if(p.frozen > 0){ sndDenied(); scanSay(`Frozen — ${p.frozen.toFixed(1)}s`, true); return; }
+  if(a.cd > 0){ sndDenied(); scanSay(`${card.n} cooling down — ${a.cd.toFixed(1)}s`, true); return; }
   if(p.cd > 0){ sndDenied(); scanSay(`Cooling down — ${p.cd.toFixed(1)}s`, true); return; }
-  if(!p.owned[c.id]){ sndDenied(); scanSay(`${card.n} is not in your deck — scan your HQ to buy it`, true); return; }
-  if(!afford(p, effCost(p, c.id))){ sndDenied(); scanSay(`Not enough resources for ${card.n}`, true); return; }
+  if(!afford(p, effCost(p, a.id))){
+    sndDenied(); scanSay(`Need ${priceText(effCost(p, a.id))} for ${card.n}`, true); return;
+  }
 
-  const r = actPlay(G, i, c.id, {code:c.code});
+  const r = actUse(G, i, k);
   if(!r){ sndDenied(); return; }
-  delete p.hand[c.code];                 // it is on the table now, not in hand
   sndScan(); say(i, r.log); scanSay(r.log);
-  if(r.follow){ nav = {p:i, mode:'play', screen:r.follow, cat:null, worker:c.code};
-                hold(`Playing a card — ${p.name}`, null, false); }
+  if(r.follow){ nav = {p:i, mode:'play', screen:r.follow, cat:null};
+                hold(`Resolving — ${p.name}`, null, false); }
   else if(r.hold) hold(r.hold, null, true);
   else if(r.wait) hold(`Resolving ${card.n} — ${p.name}`, r.wait, false);
   renderBoth(); renderStats(); push();
@@ -12662,8 +12797,7 @@ document.getElementById('lk_clear').onclick = () => {
 const FIELDS = {
   s_bw:['baseIncome','wood'], s_bf:['baseIncome','food'], s_bg:['baseIncome','gold'],
   s_sw:['start','wood'], s_sf:['start','food'], s_sg:['start','gold'],
-  s_hp:['hqHealth'], s_int:['recallInterval'],
-  s_c0:['recallFloor'], s_c2:['recallNear'], s_c4:['recallMid'], s_c6:['recallFar'],
+  s_hp:['hqHealth'], s_ab:['abilitySlots'],
   s_cd:['cooldown'], s_mkt:['marketRefresh'], s_frz:['freeze'], s_tgt:['target'],
 };
 function syncCfgInputs(){
@@ -12676,6 +12810,7 @@ function syncCfgInputs(){
 }
 for(const id in FIELDS){
   const path = FIELDS[id], el = document.getElementById(id);
+  if(!el) continue;
   el.value = path.length === 2 ? cfg[path[0]][path[1]] : cfg[path[0]];
   el.oninput = () => {
     const v = parseFloat(el.value); if(isNaN(v)) return;
