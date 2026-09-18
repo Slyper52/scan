@@ -10201,29 +10201,46 @@ header{display:flex; flex-wrap:wrap; align-items:center; gap:10px 16px; padding:
 .table{display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; align-items:start}
 #hdr{grid-column:1/-1; order:0; margin-bottom:0}
 #pausebar{grid-column:1/-1; order:1; margin-bottom:0}
-#panel0{order:2} #panel1{order:3}
+#tugbar{grid-column:1/-1; order:2; margin-bottom:0}
+#panel0{order:3} #panel1{order:4}
 @media (max-width:900px){ .table{grid-template-columns:minmax(0,1fr)} }
 
 .table.f2f{grid-template-columns:minmax(0,1fr); gap:7px}
 .table.f2f #panel1{order:0; transform:rotate(180deg)}
-.table.f2f #hdr{order:1} .table.f2f #pausebar{order:2} .table.f2f #panel0{order:3}
+.table.f2f #hdr{order:1} .table.f2f #pausebar{order:2}
+.table.f2f #tugbar{order:3} .table.f2f #panel0{order:4}
 .table.f2f .brand{display:none}
-.table.f2f .panel{padding:10px; gap:8px}
+.table.f2f .panel{padding:9px; gap:6px}
 .table.f2f header{padding:7px 12px; gap:8px 14px}
 .table.f2f .clock{font-size:24px}
-.table.f2f .rtile{padding:7px 9px}
-.table.f2f .rtile .rv{font-size:28px}
+.table.f2f .rtile{padding:5px 9px}
+.table.f2f .rtile .rv{font-size:25px}
 .table.f2f .rtile .ri{font-size:12px}
 .table.f2f .nudge{margin-top:6px}
 .table.f2f .nudge button{padding:8px 0; font-size:16px}
-.table.f2f .hq{padding:6px 9px}
-.table.f2f .hq .hv{font-size:23px}
 .table.f2f .drawbtn{min-height:76px}
 .table.f2f .drawbtn .dtxt{font-size:26px}
 .table.f2f .acts{gap:7px}
-.table.f2f .acts .btn{min-height:44px; font-size:14px}
+.table.f2f .acts .btn{min-height:38px; font-size:13.5px}
 .table.f2f .acts .btn.big{min-height:60px; font-size:17px; padding:10px}
+/* three equal, unshouty buttons — none of them is the main way to do anything now */
+.acts.three{grid-template-columns:1fr 1fr 1fr}
+.acts.three .btn{min-height:42px; font-size:14px; position:relative; overflow:hidden}
+/* on a small button the cooldown is a thin bar along the bottom, not a veil over the
+   label — it is a hint, not the point of the button any more */
+.acts.three .cdfill{top:auto; bottom:0; height:3px; border-left:0; background:var(--alert)}
+.acts.three .btn.cooling .blab{opacity:1}
+.acts.three .btn.cooling .blab, .acts.three .btn.cooling .cdsub{text-shadow:none}
+.acts.three .cdsub{font-size:11px; opacity:.7}
+@media (max-width:430px){ .acts.three{grid-template-columns:1fr 1fr} .acts.three .btn:first-child{grid-column:1/-1} }
 .table.f2f .cardlist{max-height:250px}
+.table.f2f .tugbar{padding:3px 9px; gap:7px}
+.table.f2f .ttrack{height:14px}
+.table.f2f .tval{font-size:11px}
+.table.f2f .sites{padding:2px 7px; gap:5px}
+.table.f2f .sites .sv{font-size:15px}
+.table.f2f .sites button{padding:2px 7px; font-size:11.5px}
+.table.f2f .sites .slab{font-size:9.5px}
 
 /* UI scale: applies to the board and to overlay panels, not the fixed backdrop */
 .table{zoom:var(--z,1)}
@@ -10245,8 +10262,6 @@ body.phone .rtile .rv{font-size:27px}
 body.phone .rtile .ri{font-size:11.5px}
 body.phone .nudge{margin-top:5px}
 body.phone .nudge button{padding:7px 0; font-size:15px}
-body.phone .hq{padding:5px 8px}
-body.phone .hq .hv{font-size:21px}
 body.phone .drawbtn{min-height:66px}
 body.phone .drawbtn .dtxt{font-size:23px}
 body.phone .drawbtn .dsub{font-size:12px}
@@ -10274,8 +10289,6 @@ body.phone .panel.remote .rtile .rl{font-size:9.5px; gap:4px}
 body.phone .panel.remote .rtile .rv{font-size:19px}
 body.phone .panel.remote .rtile .ri{font-size:10px}
 body.phone .panel.remote .rfill{display:none}
-body.phone .panel.remote .hq{padding:3px 8px}
-body.phone .panel.remote .hq .hv{font-size:17px}
 body.phone .panel.remote .rostat{min-height:0; padding:5px; font-size:11.5px}
 
 /* small or short phones (SE, and any phone once Safari's chrome is showing) */
@@ -10290,8 +10303,6 @@ body.phone .panel.remote .rostat{min-height:0; padding:5px; font-size:11.5px}
   body.phone .rtile .ri{font-size:10.5px}
   body.phone .nudge{margin-top:4px}
   body.phone .nudge button{padding:5px 0; font-size:14px}
-  body.phone .hq{padding:3px 8px}
-  body.phone .hq .hv{font-size:18px}
   body.phone .drawbtn{min-height:54px}
   body.phone .drawbtn .dtxt{font-size:19px}
   body.phone .drawbtn .dsub{font-size:11px}
@@ -10309,12 +10320,12 @@ body.phone .panel.remote .rostat{min-height:0; padding:5px; font-size:11.5px}
   body.phone .wrap{padding:5px; padding-block:5px 10px}
   body.phone .table{gap:5px}
   body.phone .panel{padding:6px; gap:5px}
-  body.phone .rtile .rv{font-size:20px}
-  body.phone .rtile .rl{font-size:10px}
+  body.phone .rtile .rv{font-size:18px}
+  body.phone .rtile .rl{font-size:9.5px}
   body.phone .nudge button{padding:4px 0; font-size:13px}
   body.phone .drawbtn{min-height:48px}
   body.phone .drawbtn .dtxt{font-size:17px}
-  body.phone .acts .btn{min-height:34px; font-size:11px}
+  body.phone .acts .btn{min-height:31px; font-size:10.5px}
   body.phone .acts .btn.big{min-height:42px; font-size:13px}
   body.phone .panel.remote{padding:5px 7px; gap:4px}
   body.phone .panel.remote .phead{display:none}
@@ -10322,31 +10333,86 @@ body.phone .panel.remote .rostat{min-height:0; padding:5px; font-size:11.5px}
   body.phone .panel.remote .rtile{padding:3px 5px}
   body.phone .cardlist{max-height:34vh}
   body.phone.screening .cardlist{max-height:32vh}
+  body.phone .setupbox{padding:8px; gap:5px}
+  body.phone .setupbox .setupn b{font-size:28px}
+  body.phone .setupbox .note{font-size:10.5px; line-height:1.4}
+  body.phone .ab{min-height:46px; padding:5px 8px}
+  body.phone .ab .abn{font-size:14px}
+  body.phone .sites{padding:1px 5px; gap:4px}
+  body.phone .sites .sv{font-size:13px}
+  body.phone .sites .slab{font-size:9px}
+  body.phone .sites button{padding:2px 6px; font-size:10.5px}
+  body.phone .tugbar{padding:3px 7px}
+  body.phone .ttrack{height:14px}
 }
 
 /* shorter tablets shrink one more step rather than scrolling */
 @media (max-height:900px){
   .table.f2f{gap:5px}
-  .table.f2f .panel{padding:7px; gap:5px}
+  .table.f2f .panel{padding:6px; gap:4px}
   .table.f2f header{padding:5px 10px}
   .table.f2f .clock{font-size:20px}
-  .table.f2f .rtile{padding:5px 7px}
-  .table.f2f .rtile .rl{font-size:11px}
-  .table.f2f .rtile .rv{font-size:23px}
+  .table.f2f .rtile{padding:4px 7px}
+  .table.f2f .rtile .rl{font-size:10.5px}
+  .table.f2f .rtile .rv{font-size:20px}
   .table.f2f .rtile .ri{font-size:11px}
   .table.f2f .nudge{margin-top:4px}
   .table.f2f .nudge button{padding:6px 0; font-size:14px}
-  .table.f2f .hq{padding:4px 8px}
-  .table.f2f .hq .hv{font-size:19px}
   .table.f2f .drawbtn{min-height:58px}
   .table.f2f .drawbtn .dtxt{font-size:21px}
   .table.f2f .drawbtn .dsub{font-size:12px}
   .table.f2f .acts{gap:5px}
-  .table.f2f .acts .btn{min-height:38px; font-size:13px}
+  .table.f2f .acts .btn{min-height:33px; font-size:12.5px}
   .table.f2f .acts .btn.big{min-height:48px; font-size:15px; padding:8px}
   .table.f2f .cardlist{max-height:165px}
+  .table.f2f .tugbar{padding:2px 7px}
+  .table.f2f .ttrack{height:12px}
+  .table.f2f .sites{padding:1px 6px}
+  .table.f2f .sites .sv{font-size:13px}
   .table.f2f .waitbar{padding:5px; font-size:12px}
 }
+
+/* ---- the tug of war -------------------------------------------------------
+   One marker on one track. Both players read the same object, so there is never a
+   question of whose number is whose — the side it leans to is who is winning. */
+.tugbar{display:flex; align-items:center; gap:10px; padding:7px 12px;
+  background:var(--surface); border:1px solid var(--line); border-radius:var(--r);
+  box-shadow:var(--shadow)}
+.tugbar .tn{font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.06em;
+  white-space:nowrap; flex:none}
+.tugbar .tn.a{color:var(--accent)} .tugbar .tn.b{color:var(--wood)}
+.ttrack{position:relative; flex:1 1 auto; min-width:90px; height:20px; border-radius:5px;
+  background:var(--surface-2); border:1px solid var(--line); overflow:hidden}
+.tfill{position:absolute; top:0; bottom:0; width:0; background:var(--accent)}
+.tfill.b{background:var(--wood)}
+.tmid{position:absolute; left:50%; top:0; bottom:0; width:2px; margin-left:-1px;
+  background:var(--ink-3); opacity:.6}
+.tval{position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+  pointer-events:none}
+.tval span{font-family:'JetBrains Mono',monospace; font-weight:700; font-size:12px;
+  color:var(--ink); background:var(--surface); border:1px solid var(--line);
+  border-radius:99px; padding:0 8px; line-height:1.4}
+.tmeta{font-size:11px; color:var(--ink-3); white-space:nowrap; flex:none;
+  font-family:'JetBrains Mono',monospace}
+.tugbar.dbl{border-color:var(--alert)}
+.tugbar.dbl .tmeta{color:var(--alert); font-weight:700}
+body.phone .tugbar{padding:5px 8px; gap:6px}
+body.phone .tugbar .tn{font-size:9.5px}
+body.phone .tmeta{font-size:9.5px}
+
+/* sacred sites: a count and two buttons, because the sites live on the table */
+.sites{display:flex; align-items:center; gap:7px; border:1px solid var(--line);
+  border-radius:7px; padding:5px 8px; background:var(--bg)}
+.sites .slab{font-size:10.5px; text-transform:uppercase; letter-spacing:.07em;
+  color:var(--ink-2); font-weight:700}
+.sites .sv{font-family:'JetBrains Mono',monospace; font-weight:700; font-size:18px;
+  color:var(--accent); margin-left:auto}
+.p2 .sites .sv{color:var(--wood)}
+.sites button{padding:4px 9px; font-size:12px; font-weight:600; background:var(--surface-2);
+  border:1px solid var(--line); border-radius:5px; line-height:1.2}
+.sites button:disabled{opacity:.35}
+body.phone .sites{padding:4px 6px; gap:5px}
+body.phone .sites button{padding:3px 7px; font-size:11px}
 
 .panel{background:var(--surface); border:1px solid var(--line); border-radius:var(--r); padding:13px;
   box-shadow:var(--shadow); display:flex; flex-direction:column; gap:12px}
@@ -10439,11 +10505,6 @@ body.phone .ab .abn{font-size:15px}
 .drawbtn:disabled{opacity:.4}
 .drawbtn:disabled .dsub{color:var(--alert)}
 
-.hq{display:flex; align-items:center; gap:8px; border:1px solid var(--line); border-radius:7px; padding:7px 10px; background:var(--bg)}
-.hq .hl{font-size:12px; text-transform:uppercase; letter-spacing:.08em; color:var(--ink-2); font-weight:600}
-.hq .hv{font-size:27px; font-weight:700; letter-spacing:-.02em; margin-left:auto}
-.hq .hv small{font-size:14px; font-weight:400; color:var(--ink-3)}
-.hq.hurt .hv{color:var(--alert)}
 
 .acts{display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:8px}
 .acts .wide{grid-column:span 3}
@@ -10474,7 +10535,7 @@ body.phone .ab .abn{font-size:15px}
 .panel.locked{opacity:.72}
 .panel.locked button{pointer-events:none}
 .panel.locked .acts .btn{opacity:.45}
-.panel.locked .nudge button, .panel.locked .hq button, .panel.locked .drawbtn{opacity:.4}
+.panel.locked .nudge button, .panel.locked .acts button{opacity:.4}
 .panel.locked .btn.pri{position:relative; background:var(--alert); border-color:var(--alert); opacity:.6}
 .panel.locked .btn.pri::after{content:''; position:absolute; inset:0; border-radius:6px;
   background:repeating-linear-gradient(135deg, transparent 0 8px, rgba(255,255,255,.65) 8px 16px)}
@@ -10586,12 +10647,6 @@ body.phone .toast{font-size:16px; padding:10px 15px; bottom:12px; max-width:94vw
 .pausebar.setup{background:var(--surface-2); border-color:var(--go); color:var(--ink)}
 .pausebar.setup .num{color:var(--go); font-weight:700; letter-spacing:.04em}
 
-.handchip{background:var(--surface-2); border:1px solid var(--line); border-radius:999px;
-  padding:2px 9px; font-size:11px; font-weight:600; text-transform:uppercase;
-  letter-spacing:.06em; color:var(--ink-2)}
-.handchip b{font-family:'JetBrains Mono',monospace; font-size:13px; color:var(--ink); margin-left:4px}
-.handchip.dim{border-style:dashed; opacity:.75}
-
 .setupbox{border:2px dashed var(--go); border-radius:8px; padding:14px; display:grid;
   gap:9px; justify-items:center; text-align:center}
 .setupbox .setupn{display:flex; align-items:baseline; gap:7px}
@@ -10653,6 +10708,17 @@ body.phone .toast{font-size:16px; padding:10px 15px; bottom:12px; max-width:94vw
   <button class="btn" id="cancelBuyBtn" hidden>Cancel</button>
 </div>
 
+<div class="tugbar" id="tugbar">
+  <span class="tn a" id="tn0">P1</span>
+  <div class="ttrack">
+    <span class="tfill" id="tfill"></span>
+    <span class="tmid"></span>
+    <span class="tval" id="tval">0</span>
+  </div>
+  <span class="tn b" id="tn1">P2</span>
+  <span class="tmeta" id="tmeta"></span>
+</div>
+
   <div class="panel p1" id="panel0"></div>
   <div class="panel p2" id="panel1"></div>
 </div>
@@ -10704,7 +10770,6 @@ body.phone .toast{font-size:16px; padding:10px 15px; bottom:12px; max-width:94vw
       <div class="frow"><label for="s_bw">Base Wood</label><input type="number" id="s_bw" step="1"></div>
       <div class="frow"><label for="s_bf">Base Food</label><input type="number" id="s_bf" step="1"></div>
       <div class="frow"><label for="s_bg">Base Gold</label><input type="number" id="s_bg" step="1"></div>
-      <div class="frow"><label for="s_hp">HQ Health</label><input type="number" id="s_hp" step="1"></div>
     </div>
     <div class="sgroup">
       <h3>Starting resources</h3>
@@ -10725,6 +10790,16 @@ body.phone .toast{font-size:16px; padding:10px 15px; bottom:12px; max-width:94vw
       <div class="frow"><label for="s_mkt">Market refresh <span class="tag">Gold</span></label><input type="number" id="s_mkt" step="1"></div>
       <div class="frow"><label for="s_frz">Freeze duration <span class="tag">sec</span></label><input type="number" id="s_frz" step="1"></div>
       <div class="frow"><label for="s_tgt">Target length <span class="tag">min</span></label><input type="number" id="s_tgt" step="1"></div>
+    </div>
+    <div class="sgroup">
+      <h3>Victory</h3>
+      <div class="frow"><label for="s_vp">Score to win</label><input type="number" id="s_vp" step="5"></div>
+      <div class="frow"><label for="s_dbl">Double at <span class="tag">min</span></label><input type="number" id="s_dbl" step="1"></div>
+      <div class="frow"><label for="s_end">Hard stop <span class="tag">min</span></label><input type="number" id="s_end" step="1"></div>
+      <div class="frow"><label for="s_sit">Sacred sites</label><input type="number" id="s_sit" step="1"></div>
+      <div class="frow"><label for="s_svp">Site VP <span class="tag">per min</span></label><input type="number" id="s_svp" step="1"></div>
+      <p class="note">One track from &minus;Score to +Score. Sites and kills both move it;
+      the opponent scoring moves it back.</p>
     </div>
   </div>
   <p class="note" style="margin:0">Hands and the market row stay on the table. The app knows what cards you own,
@@ -10800,21 +10875,26 @@ const RES = ['wood','gold','food'];
 const DB = {
   /* The three workstations are supply cards like everything else now. buy:0 means their
      whole price is the build cost below — which is what the merged price adds up. */
-  lumber:{n:'Lumber Camp', cat:'building', pers:1, buy:0, buyR:'wood', cost:{wood:10}, income:{wood:5}, cap:3, per:{wood:3}, hp:5},
-  farm:{n:'Farm', cat:'building', pers:1, buy:0, buyR:'wood', cost:{wood:5,food:5}, income:{food:5}, cap:3, per:{food:3}, hp:5},
-  mine:{n:'Gold Mine', cat:'building', pers:1, buy:0, buyR:'wood', cost:{wood:10,gold:3}, income:{gold:2}, cap:3, per:{gold:1}, hp:5},
+  /* Three copies each in B3. Economy no longer scales by shopping — the market income
+     buildings are gone — it scales by taking ground, because a Lumber Camp needs a Forest
+     node and a Gold Mine needs a Gold Vein. */
+  lumber:{n:'Lumber Camp', cat:'building', pers:3, buy:0, buyR:'wood', cost:{wood:10}, income:{wood:5}, cap:3, per:{wood:3}, hp:5, info:'Forest only'},
+  farm:{n:'Farm', cat:'building', pers:3, buy:0, buyR:'wood', cost:{wood:5,food:5}, income:{food:5}, cap:3, per:{food:3}, hp:5, info:'place a Field'},
+  mine:{n:'Gold Mine', cat:'building', pers:3, buy:0, buyR:'wood', cost:{wood:10,gold:3}, income:{gold:2}, cap:3, per:{gold:1}, hp:5, info:'Gold Vein only'},
   /* ---- personal supply: everything below is bought with Wood, always in stock ----
      Refresh B moved Spearman, Archer, Worker, Move and Attack out of the starting deck
      and into here. Nothing but the three workstations above starts in hand. */
-  spearman:{n:'Spearman', cat:'unit', sub:'military', pers:3, buy:3, buyR:'wood', cost:{food:5}, info:'1 wht 1 blu · hp 5'},
-  archer:{n:'Archer', cat:'unit', sub:'military', pers:3, buy:4, buyR:'wood', cost:{food:7}, info:'2 wht · rng 2 · hp 3'},
+  spearman:{n:'Spearman', cat:'unit', sub:'military', pers:3, buy:3, buyR:'wood', cost:{food:5}, beats:'Horsemen', info:'1 wht 1 blu · hp 5 · counters Horsemen'},
+  archer:{n:'Archer', cat:'unit', sub:'military', pers:3, buy:4, buyR:'wood', cost:{food:7}, beats:'Spearmen', info:'2 wht · rng 2 · hp 3 · counters Spearmen'},
+  /* New in B3, and the third leg of the counter triangle. Fast and dearest. */
+  horse:{n:'Horsemen', cat:'unit', sub:'military', pers:3, buy:6, buyR:'wood', cost:{food:9}, beats:'Archers', info:'1 grn 1 wht · mv2 · hp 6 · counters Archers'},
   /* Each worker costs one Wood more than the last, so a wide economy has a rising price
      rather than a flat one. buyStep drives that. */
   worker:{n:'Worker', cat:'unit', sub:'worker', pers:10, buy:3, buyStep:1, buyR:'wood', fung:1, cost:{food:5}, info:'staff a building · +1 Wood each', act:'worker'},
   /* buyAdd is a ladder, not a rate: each entry is what THAT purchase adds on top of the
      one before. 3 -> 6 -> 11, so your third action card is a real commitment. */
-  move:{n:'Move', cat:'ability', pers:1, buyR:'wood', cost:{food:3}, cool:12, start:1, info:'move a unit', pauseFor:3},
-  attack:{n:'Attack', cat:'ability', pers:1, buyR:'wood', cost:{food:3}, cool:12, start:1, info:'attack with a unit', act:'attack'},
+  move:{n:'Move', cat:'ability', pers:1, buyR:'wood', perUnit:1, cool:12, start:1, info:'move EVERY unit · 1 Food each', pauseFor:3},
+  attack:{n:'Attack', cat:'ability', pers:1, buyR:'wood', perUnit:1, cool:12, start:1, info:'EVERY unit in range attacks · 1 Food each', act:'attack'},
   /* ---- Upgrades ----------------------------------------------------------
      An upgrade is not a second copy of the ability and does not give you a second
      action. You buy it, scan it once, and it permanently cuts that ability's cooldown —
@@ -10836,28 +10916,29 @@ const DB = {
   /* the rest of the personal supply */
 
   droad:{n:'Dirt Road', cat:'building', pers:3, buy:6, buyR:'wood', cost:{wood:3}, hp:3, info:'extends network · hp 3'},
-  maa:{n:'Men at Arms', cat:'unit', sub:'military', pers:3, buy:10, buyR:'wood', cost:{food:8,wood:2}, info:'2 wht · hp 5 · arm 1'},
+
   gate:{n:'Gate', cat:'building', pers:3, buy:12, buyR:'wood', cost:{wood:10}, hp:7, info:'blocks a path · hp 7'},
   /* market — abilities */
-  wild:{n:'Wild', cat:'ability', rar:'C', buy:5, cost:{food:4}, cool:15, info:'move OR attack · cd 15s', pauseFor:3},
-  charge:{n:'Charge', cat:'ability', rar:'C', buy:7, cost:{food:5}, cool:30, info:'move AND attack · cd 30s', act:'attack'},
-  mmove:{n:'Multi Move', cat:'ability', rar:'C', buy:7, cost:{food:4}, cool:25, info:'move up to 2 · cd 25s', pauseFor:3},
-  volley:{n:'Volley', cat:'ability', rar:'C', buy:6, cost:{food:5}, cool:25, info:'2 units, one target · cd 25s', act:'attack'},
-  freeze:{n:'Freeze Opponent', cat:'ability', rar:'R', buy:8, cost:{food:4}, cool:45, info:'freeze foe 5s · cd 45s', act:'freeze'},
-  unrel:{n:'Unrelenting Attack', cat:'ability', rar:'R', buy:10, cost:{food:5}, cool:40, info:'attack twice · cd 40s', act:'attack'},
-  sabotage:{n:'Sabotage', cat:'ability', rar:'R', buy:12, cost:{food:8}, cool:45, info:'4 dmg to a building · cd 45s'},
-  reclaim:{n:'Reclaim', cat:'ability', rar:'R', buy:8, cost:{gold:6}, cool:40, info:'un-exile a unit · cd 40s', act:'reclaim'},
-  famine:{n:'Famine', cat:'ability', rar:'R', buy:9, cost:{food:6}, cool:45, info:'kill an enemy worker · cd 45s'},
+  wild:{n:'Wild', cat:'ability', rar:'C', buy:5, cost:{food:4}, cool:15, info:'move OR attack', pauseFor:3},
+  charge:{n:'Charge', cat:'ability', rar:'C', buy:7, cost:{food:5}, cool:30, info:'move AND attack', act:'attack'},
+  mmove:{n:'Multi Move', cat:'ability', rar:'C', buy:7, cost:{food:4}, cool:25, info:'move up to 2', pauseFor:3},
+  volley:{n:'Volley', cat:'ability', rar:'C', buy:6, cost:{food:5}, cool:25, info:'2 units, one target', act:'attack'},
+  freeze:{n:'Freeze', cat:'ability', rar:'R', buy:8, cost:{food:4}, cool:45, info:'freeze foe 5s', act:'freeze'},
+  unrel:{n:'Unrelenting', cat:'ability', rar:'R', buy:10, cost:{food:5}, cool:40, info:'attack twice', act:'attack'},
+  sabotage:{n:'Sabotage', cat:'ability', rar:'R', buy:12, cost:{food:8}, cool:45, info:'4 dmg to a building', retired:1},
+  reclaim:{n:'Reclaim', cat:'ability', rar:'R', buy:8, cost:{gold:6}, cool:40, info:'un-exile a unit', act:'reclaim', retired:1},
+  famine:{n:'Famine', cat:'ability', rar:'R', buy:9, cost:{food:6}, cool:45, info:'kill an enemy worker', retired:1},
   /* market — buildings */
   tower:{n:'Watchtower', cat:'building', rar:'C', buy:5, cost:{wood:8}, hp:6, info:'1 grn rng 2 · hp 6'},
   proad:{n:'Paved Road', cat:'building', rar:'R', buy:8, cost:{wood:8}, hp:4, info:'road · +1 move through'},
   sgate:{n:'Stone Gate', cat:'building', rar:'R', buy:9, cost:{wood:16}, hp:12, info:'blocks a path · hp 12 arm 1'},
-  quarry:{n:'Quarry', cat:'building', rar:'C', buy:6, cost:{wood:12}, income:{wood:4}, cap:2, per:{wood:2}, hp:5},
-  granary:{n:'Granary', cat:'building', rar:'C', buy:6, cost:{wood:10,food:5}, income:{food:6}, cap:2, per:{food:3}, hp:5},
-  mint:{n:'Mint', cat:'building', rar:'R', buy:10, cost:{wood:15,gold:5}, income:{gold:4}, cap:2, per:{gold:2}, hp:5},
+  quarry:{n:'Quarry', cat:'building', rar:'C', buy:6, cost:{wood:12}, income:{wood:4}, cap:2, per:{wood:2}, hp:5, retired:1},
+  granary:{n:'Granary', cat:'building', rar:'C', buy:6, cost:{wood:10,food:5}, income:{food:6}, cap:2, per:{food:3}, hp:5, retired:1},
+  mint:{n:'Mint', cat:'building', rar:'R', buy:10, cost:{wood:15,gold:5}, income:{gold:4}, cap:2, per:{gold:2}, hp:5, retired:1},
   barracks:{n:'Barracks', cat:'building', rar:'R', buy:9, cost:{wood:14}, hp:7, flag:'barracks', info:'military −2 Food'},
   citadel:{n:'Citadel', cat:'building', rar:'E', buy:18, cost:{wood:25}, hp:12, info:'adj. bldgs +1 armor'},
   /* market — units */
+  maa:{n:'Men at Arms', cat:'unit', sub:'military', rar:'C', buy:8, cost:{food:8,wood:2}, info:'2 wht · hp 5 · arm 1'},
   skirm:{n:'Skirmisher', cat:'unit', sub:'military', rar:'C', buy:4, cost:{food:6,wood:2}, info:'mv2 · 1 wht · hp 3'},
   xbow:{n:'Crossbowman', cat:'unit', sub:'military', rar:'C', buy:6, cost:{food:9,wood:2}, info:'1 grn 1 wht · rng 2'},
   pike:{n:'Pikeman', cat:'unit', sub:'military', rar:'C', buy:6, cost:{food:8,wood:2}, info:'1 grn · hp 6 · arm 1'},
@@ -10879,7 +10960,7 @@ const ABBR = {
   mint:'MINT-', barracks:'BARRK', citadel:'CITDL', skirm:'SKIRM', xbow:'XBOW-', pike:'PIKE-',
   ram:'RAM--', knight:'KNGHT', treb:'TREB-', sapper:'SAPPR', champ:'CHAMP', medic:'MEDIC',
   eng:'ENGNR', bearer:'BEARR',
-  droad:'DROAD', maa:'MENAT', charge:'CHARG', proad:'PROAD', sgate:'SGATE',
+  droad:'DROAD', maa:'MENAT', horse:'HORSE', charge:'CHARG', proad:'PROAD', sgate:'SGATE',
   moveup1:'MVUP1', moveup2:'MVUP2', atkup1:'ATUP1', atkup2:'ATUP2',
 };
 /* one physical card per copy: owner(1) + design(5) + copy(2) */
@@ -10899,7 +10980,7 @@ const SUBGRP = {
    config in localStorage, and Object.assign(def(), saved) let that old config win — so a
    player who started on Version A kept Version A's starting resources for ever, silently.
    The version tag is what lets a stale config be recognised and dropped. */
-const RULES_VER = 'B2.2';
+const RULES_VER = 'B3.0';
 
 function def(){ return {
   ver:RULES_VER,
@@ -10908,12 +10989,21 @@ function def(){ return {
      making the opening trivial. 45/25/10 armed you by minute two and skipped the
      build-up phase entirely. */
   start:{wood:30, food:10, gold:3},
-  hqHealth:20,
   /* Abilities are kept, not spent: four slots, each with its own cooldown. Two of them
      arrive filled, which is why the game opens with something to do. */
   abilitySlots:4,
   marketRefresh:4,
-  cooldown:1, freeze:5, target:30,
+  cooldown:1, freeze:5, target:20,
+  /* ---- the tug of war ----------------------------------------------------
+     One marker on a track from -vpTarget to +vpTarget. Positive is Player 1.
+     Scoring pulls it your way; the opponent scoring pulls it back, so a player about to
+     win can be dragged past zero if the other side retakes the sites. */
+  vpTarget:100,          // hitting either end ends the game outright
+  doubleAt:10,           // minutes: sites pay double and kills pay their full cost
+  endAt:20,              // minutes: hard stop, whoever leads wins
+  sites:3,               // sacred sites on the map
+  siteVP:10, siteGold:1, // per minute, per site held
+  siteCost:{food:6, wood:4},
 };}
 
 function newPlayer(cfg, name, seat){
@@ -10932,7 +11022,7 @@ function newPlayer(cfg, name, seat){
     res:{wood:cfg.start.wood, food:cfg.start.food, gold:cfg.start.gold},
     incAdj:{wood:0, food:0, gold:0},
     earned:{wood:0, food:0, gold:0}, spent:{wood:0, food:0, gold:0},
-    hp:cfg.hqHealth, cd:0, frozen:0,
+    cd:0, frozen:0, sites:0, vpScored:0, lost:0,
     plays:0, buys:0, exiled:0, goldOnBuys:0, woodOnBuys:0,
     goldOnRefresh:0, undo:[],
   };
@@ -10942,6 +11032,7 @@ function newPlayer(cfg, name, seat){
    players lay out their supply, put Move and Attack in front of them, and tap Start. */
 function newGame(cfg){
   return { cfg, clock:0, pausedTime:0, paused:true, pause:null, speed:1, phase:'setup',
+    tug:0, over:null,
     players:[newPlayer(cfg,'Player 1',0), newPlayer(cfg,'Player 2',1)], log:[] };
 }
 
@@ -10976,6 +11067,9 @@ function fixPlayer(p){
      only thing limiting how often you act. */
   if(!Array.isArray(p.abil)) p.abil = [];
   if(!p.upg) p.upg = {};
+  if(typeof p.sites !== 'number') p.sites = 0;
+  if(typeof p.vpScored !== 'number') p.vpScored = 0;
+  if(typeof p.lost !== 'number') p.lost = 0;
   p.abil.forEach(a => { if(typeof a.cd !== 'number') a.cd = 0; });
   if(Array.isArray(p.board)) p.board.forEach(b => { if(!Array.isArray(b.staff)) b.staff = []; });
   return p;
@@ -10992,16 +11086,73 @@ function income(p, cfg){
   return inc;
 }
 
-/* Barracks: your military units cost 2 less Food */
+/* Barracks: your military units cost 2 less Food.
+   Move and Attack are army-wide in B3, so their price is one Food per living unit —
+   paid in full even if you only move some of them. Floored at 1 so it is never free. */
 function effCost(p, id){
   const c = DB[id], out = {};
   RES.forEach(r => { if(c.cost && c.cost[r]) out[r] = c.cost[r]; });
+  if(c.perUnit) out.food = Math.max(1, (p.units || []).length);
   if(c.cat === 'unit' && c.sub === 'military' && out.food && hasFlag(p,'barracks'))
     out.food = Math.max(0, out.food - 2);
   return out;
 }
 
 function afford(p, cost){ return RES.every(r => !cost[r] || p.res[r] >= cost[r] - 1e-9); }
+
+/* ---- victory points -------------------------------------------------------
+   A card is worth what it cost to field: its stack price plus its deploy cost, every
+   currency counted the same. Destroying one scores half of that, or the whole of it once
+   the clock passes doubleAt. */
+function vpFor(id){
+  const c = DB[id]; if(!c) return 0;
+  let n = c.buy || 0;
+  if(c.cost) RES.forEach(r => n += c.cost[r] || 0);
+  return n;
+}
+function vpDouble(G){ return G.clock >= (G.cfg.doubleAt || 10) * 60; }
+/* Positive tug is Player 1. Everything that scores goes through here so the track is the
+   single source of truth about who is winning. */
+function tugBy(G, who, n){
+  G.tug = (G.tug || 0) + (who === 0 ? n : -n);
+  const p = G.players[who];
+  p.vpScored = (p.vpScored || 0) + n;
+}
+function awardKill(G, loser, id){
+  const full = vpFor(id);
+  const gain = vpDouble(G) ? full : Math.round(full / 2);
+  if(gain) tugBy(G, 1 - loser, gain);
+  return gain;
+}
+
+function siteCost(G){
+  return Object.assign({wood:0, food:0, gold:0}, G.cfg.siteCost || {food:6, wood:4});
+}
+function sitesFree(G){
+  return (G.cfg.sites || 3) - (G.players[0].sites || 0) - (G.players[1].sites || 0);
+}
+/* Capturing takes a free site if there is one, otherwise it takes one off the opponent —
+   which is the whole point of a tug of war rather than two separate counters. */
+function actCaptureSite(G, i){
+  const p = G.players[i], o = G.players[1 - i], pr = siteCost(G);
+  const steal = sitesFree(G) <= 0;
+  if(steal && !(o.sites > 0)) return null;
+  if(!canAfford(p, pr)) return null;
+  snap(p, 'capture site');
+  RES.forEach(r => { if(pr[r]){ p.res[r] -= pr[r]; p.spent[r] += pr[r]; } });
+  if(steal) o.sites--;
+  p.sites = (p.sites || 0) + 1;
+  p.cd = G.cfg.cooldown;
+  return `captured a sacred site — ${priceText(pr)}${steal ? ' — taken from ' + o.name : ''}`
+       + ` · holds ${p.sites}`;
+}
+function actReleaseSite(G, i){
+  const p = G.players[i];
+  if(!(p.sites > 0)) return null;
+  snap(p, 'site lost');
+  p.sites--;
+  return `lost a sacred site · holds ${p.sites}`;
+}
 
 
 function advance(G, dt){
@@ -11016,6 +11167,33 @@ function advance(G, dt){
     /* Each ability runs its own timer. Frozen players stop cooling down — being frozen
        should cost you tempo, not just income. */
     if(p.frozen <= 0) (p.abil || []).forEach(a => { a.cd = Math.max(0, (a.cd || 0) - dt); });
+  }
+
+  /* Sacred sites pay out every tick: victory points onto the tug track, and Gold to the
+     holder. Sites keep producing while their owner is frozen — it is the site working,
+     not the player. */
+  if(G.phase === 'play' && !G.over){
+    const mult = vpDouble(G) ? 2 : 1;
+    const a = G.players[0].sites || 0, b = G.players[1].sites || 0;
+    if(a || b){
+      const per = (G.cfg.siteVP || 10) * mult * dt / 60;
+      G.tug = (G.tug || 0) + (a - b) * per;
+      G.players[0].vpScored += a * per;
+      G.players[1].vpScored += b * per;
+      [0, 1].forEach(k => {
+        const n = G.players[k].sites || 0;
+        if(!n) return;
+        const g = (G.cfg.siteGold || 1) * n * dt / 60;
+        G.players[k].res.gold += g; G.players[k].earned.gold += g;
+      });
+    }
+    /* Floats accumulate, so 100 arrives as 99.999999 — compare with a tolerance or the
+       game never ends. This bit them once already in Build C. */
+    const t = G.cfg.vpTarget || 100, eps = 1e-9;
+    if(G.tug >= t - eps)        G.over = {w:0, why:`${t} victory points`};
+    else if(G.tug <= -t + eps)  G.over = {w:1, why:`${t} victory points`};
+    else if(G.clock >= (G.cfg.endAt || 20) * 60)
+      G.over = {w: Math.abs(G.tug) < 0.5 ? -1 : (G.tug > 0 ? 0 : 1), why:'time'};
   }
 }
 
@@ -11103,9 +11281,8 @@ function findOnTable(i, code){
   return null;
 }
 
-/* A destroyed unit is exiled: out of the deck for good, so the physical card stops being
-   drawable. A destroyed BUILDING goes to the discard and stays in the deck — that
-   asymmetry is the rule, not an oversight. */
+/* With no deck and no discard, destroyed means gone: the card leaves the table and does
+   not come back. Reclaim is the only way to get one out of the exile pile. */
 function actLoseUnit(G, i, uIdx){
   const p = G.players[i], u = p.units[uIdx];
   if(!u) return null;
@@ -11114,8 +11291,10 @@ function actLoseUnit(G, i, uIdx){
   const id = u.id;
   if(p.owned[id]){ p.owned[id]--; if(!p.owned[id]) delete p.owned[id]; }
   if(u.code) delete p.cards[u.code];
-  p.exiled++;
-  return `${DB[id].n} destroyed — exiled from the deck`;
+  p.exiled++; p.lost++;
+  const vp = awardKill(G, i, id);
+  return `${DB[id].n} destroyed — out of the game`
+       + (vp ? ` · ${G.players[1-i].name} +${vp} VP` : '');
 }
 
 function actLoseWorker(G, i, bIdx, sIdx){
@@ -11126,8 +11305,10 @@ function actLoseWorker(G, i, bIdx, sIdx){
   b.workers = Math.max(0, b.workers - 1);
   if(code) delete p.cards[code];
   if(p.owned.worker){ p.owned.worker--; if(!p.owned.worker) delete p.owned.worker; }
-  p.exiled++;
-  return `worker at ${DB[b.id].n} killed (${b.workers}/${DB[b.id].cap})`;
+  p.exiled++; p.lost++;
+  const vp = awardKill(G, i, 'worker');
+  return `worker at ${DB[b.id].n} killed (${b.workers}/${DB[b.id].cap})`
+       + (vp ? ` · ${G.players[1-i].name} +${vp} VP` : '');
 }
 
 function buyRes(c){ return c.buyR || 'gold'; }        // personal stacks are bought with Wood
@@ -11331,8 +11512,11 @@ function actLoseBuilding(G, i, bIdx){
     if(p.owned.worker){ p.owned.worker--; if(!p.owned.worker) delete p.owned.worker; }
   }
   if(!lost) lost = b.workers || 0;
-  p.exiled += lost;
-  return `lost ${DB[b.id].n}` + (lost ? ` · ${lost} worker${lost === 1 ? '' : 's'} exiled` : '');
+  p.exiled += lost; p.lost++;
+  let vp = awardKill(G, i, b.id);
+  for(let k = 0; k < lost; k++) vp += awardKill(G, i, 'worker');
+  return `lost ${DB[b.id].n}` + (lost ? ` · ${lost} worker${lost === 1 ? '' : 's'} exiled` : '')
+       + (vp ? ` · ${G.players[1-i].name} +${vp} VP` : '');
 }
 
 /* Units are exiled by the rules, but the tracker no longer asks about it — there was no
@@ -11344,26 +11528,23 @@ function actExile(G, i, id){
   snap(p, 'exile');
   p.owned[id]--; if(!p.owned[id]) delete p.owned[id];
   p.exiled++;
-  return `${DB[id].n} destroyed — exiled from the deck`;
+  return `${DB[id].n} destroyed — out of the game`;
 }
 
+/* There is no discard pile any more, so a reclaimed card goes back onto its supply
+   stack — you own it again and you pay its deploy cost again to put it on the table. */
 function actReclaim(G, i, id){
   const p = G.players[i];
   snap(p, 'reclaim');
   p.owned[id] = (p.owned[id] || 0) + 1;
+  p.pers[id] = (p.pers[id] || 0) + 1;
   p.exiled = Math.max(0, p.exiled - 1);
-  return `reclaimed ${DB[id].n} to the discard pile`;
+  return `reclaimed ${DB[id].n} — back on your supply stack`;
 }
 
 function actAdjust(G, i, r, d){
   const p = G.players[i]; snap(p, 'adjust'); p.res[r] += d;
   return `${d > 0 ? '+' : ''}${d} ${r}`;
-}
-
-function actHp(G, i, d){
-  const p = G.players[i]; snap(p, 'hq health');
-  p.hp = Math.max(0, Math.min(G.cfg.hqHealth, p.hp + d));
-  return p.hp === 0 ? `HQ DESTROYED — ${G.players[1-i].name} wins` : `HQ ${d > 0 ? 'repaired' : 'damaged'} → ${p.hp} hp`;
 }
 
 /* ============================================================
@@ -11456,6 +11637,7 @@ function serialize(){
     cfg: JSON.parse(JSON.stringify(G.cfg)),
     phase: G.phase || 'play',
     clock: G.clock, pausedTime: G.pausedTime, paused: !!G.paused,
+    tug: G.tug || 0, over: G.over || null,
     pause: G.pause ? {label:G.pause.label, t:G.pause.t ?? null, manual:!!G.pause.manual,
                       by:G.pause.by ?? null, buy:G.pause.buy ?? null} : null,
     speed: G.speed || 1,
@@ -11491,6 +11673,8 @@ function applyDoc(raw, force){
   }
   G.phase = d.phase || 'play';       // a state written before setup existed is mid-game
   G.clock = d.clock || 0; G.pausedTime = d.pausedTime || 0;
+  /* Firebase drops zeros, so an absent tug means 0 rather than "keep what you had". */
+  G.tug = d.tug || 0; G.over = d.over || null;
   G.paused = !!d.paused; G.pause = d.pause || null; G.speed = d.speed || 1;
   /* Firebase stores no empty containers and no nulls: an emptied board, an emptied
      card registry and a null log author all come back as an ABSENT KEY rather than an
@@ -11650,8 +11834,8 @@ function screenHTML(i){
         const c = DB[id];
         if(c.cat !== nav.cat) return false;
         if((c.sub || null) !== sub) return false;
-        /* Playing is now strictly "what am I holding". p.owned is the census of cards
-           you possess anywhere — hand, discard or table — and is the wrong question. */
+        /* p.owned is the census of every card you possess, most of them already on the
+           table. The market row asks a different question: what is for sale. */
         return !c.pers && !c.retired && !!c.buy;
       });
       if(!ids.length) continue;
@@ -11739,7 +11923,6 @@ function renderPanel(i){
   const ro = netMode() && NET.seat !== i;          // opponent's panel on a linked device
 
   let h = `<div class="phead"><span class="pdot"></span><h2>${p.name}${ro ? '' : (netMode() ? ' <span class="tag">you</span>' : '')}</h2>`
-    + (ro ? '' : `<span class="handchip dim" title="Buildings and units you have on the table">on table <b data-tablen>${p.board.length + p.units.length}</b></span>`)
     + `<span class="meta" id="st${i}"></span></div>`;
 
   h += `<div class="res">` + RES.map(r =>
@@ -11753,13 +11936,18 @@ function renderPanel(i){
        </div>`}
      </div>`).join('') + `</div>`;
 
-  h += `<div class="hq" id="hq${i}">
-      <span class="hl">HQ</span>
-      ${ro ? '' : `<button class="btn sm danger" data-act="hp" data-d="-5">&minus;5</button>
-      <button class="btn sm danger" data-act="hp" data-d="-1">&minus;1</button>
-      <button class="btn sm" data-act="hp" data-d="1">+1</button>`}
-      <span class="hv num" data-hp>0<small>/${G.cfg.hqHealth}</small></span>
-    </div>`;
+  /* Sites are physical node cards on the map with no code to scan, so this is the only
+     way the app can learn who holds them. */
+  if(!ro && G.phase !== 'setup'){
+    const pr = siteCost(G), held = p.sites || 0;
+    const canTake = (sitesFree(G) > 0 || (G.players[1-i].sites || 0) > 0) && canAfford(p, pr);
+    h += `<div class="sites">
+        <span class="slab">Sacred sites</span>
+        <button data-act="site" data-d="1" ${canTake ? '' : 'disabled'}>Capture &middot; ${priceText(pr)}</button>
+        <button data-act="site" data-d="-1" ${held ? '' : 'disabled'}>Lost</button>
+        <span class="sv num" data-sites>${held}</span>
+      </div>`;
+  }
 
   if(ro){
     const busy = NET.lock && NET.lock.p === i;
@@ -11788,14 +11976,17 @@ function renderPanel(i){
     h += abilHTML(i);
     if(locked) h += `<div class="waitbar">${G.players[1-i].name} is playing &mdash; wait</div>`;
     else if(NET.on && NET.err) h += `<div class="waitbar">Link problem &mdash; open This device</div>`;
-    h += `<div class="acts">
-        <button class="btn big pri wide" data-act="open" data-m="buy" data-playbtn>
+    /* Buying is a scan now, so the big button is gone. This small one stays as the
+         fallback for a card the camera will not read — and it is still the only way to
+       reach the market row by tapping. */
+    h += `<div class="acts three">
+        <button class="btn" data-act="open" data-m="buy" data-playbtn>
           <span class="cdfill" data-cdfill></span>
-          <span class="blab">Buy &amp; Deploy</span>
+          <span class="blab">Cards&hellip;</span>
           <span class="cdsub" data-cdlab></span>
         </button>
-        <button class="btn danger wide" data-act="scr" data-s="lose">Building lost</button>
-        <button class="btn wide" data-act="undo" data-undobtn>Undo</button>
+        <button class="btn danger" data-act="scr" data-s="lose">Building lost</button>
+        <button class="btn" data-act="undo" data-undobtn>Undo</button>
       </div>`;
   }
 
@@ -11965,8 +12156,18 @@ function handleAct(i, b){
     closeNav(i); return;
   }
 
+  if(a === 'site'){
+    const d = +b.dataset.d;
+    const r = d > 0 ? actCaptureSite(G, i) : actReleaseSite(G, i);
+    if(!r){
+      sndDenied();
+      scanSay(d > 0 ? `Need ${priceText(siteCost(G))} to capture` : 'You hold no sites', true);
+      return;
+    }
+    say(i, r); if(d > 0) sndBuy(); else sndDenied();
+    scanSay(r, d < 0);
+  }
   if(a === 'adj'){ sndGain(); say(i, actAdjust(G, i, b.dataset.r, +b.dataset.d)); }
-  if(a === 'hp')   say(i, actHp(G, i, +b.dataset.d));
   if(a === 'undo'){ const u = undoLast(p); say(i, u ? `undid: ${u}` : null); }
 
   renderBoth(); renderStats();
@@ -11979,8 +12180,8 @@ function renderLog(){
     || `<div class="note" style="margin:0">Nothing yet.</div>`;
 }
 
-/* Not a deck any more — this is every card you possess, wherever it is: hand, discard,
-   or already on the table. */
+/* Not a deck any more — this is every card you possess, nearly all of it already
+   deployed on the table. Post-game stats only; it is not shown during play. */
 function deckSize(p){ let n = 0; for(const k in p.owned) n += p.owned[k]; return n; }
 function unitCount(p){ return (p.units || []).length; }
 
@@ -11994,12 +12195,14 @@ function renderStats(){
     ['Buildings up',  p => p.board.length],
     ['Cards played',  p => p.plays],
     ['Market buys',   p => p.buys],
+    ['Victory points', p => Math.round(p.vpScored || 0)],
+    ['Sacred sites',  p => (p.sites || 0) + '/' + (G.cfg.sites || 3)],
+    ['Units lost',    p => p.lost || 0],
     ['Abilities',     p => (p.abil || []).length + '/' + (G.cfg.abilitySlots || 4)],
     ['Cooldown cuts', p => Object.keys(p.upg || {}).map(k =>
                         `${DB[k].n} ${coolFor(p, k)}s`).join(', ') || '—'],
     ['Ability uses',  p => (p.abil || []).reduce((n, a) => n + (a.uses || 0), 0)],
     ['Own stacks left', p => Object.keys(p.pers || {}).map(k => `${DB[k].n.split(' ')[0]} ${p.pers[k]}`).join(' · ')],
-    ['HQ health',     p => p.hp + '/' + G.cfg.hqHealth],
     ['Wood earned',   p => fmt(p.earned.wood)],
     ['Food earned',   p => fmt(p.earned.food)],
     ['Gold earned',   p => fmt(p.earned.gold)],
@@ -12010,6 +12213,9 @@ function renderStats(){
   document.getElementById('stats').innerHTML =
     `<tr><th>Measure</th><th style="text-align:right">P1</th><th style="text-align:right">P2</th></tr>` +
     rows.map(([k,f]) => `<tr><td>${k}</td><td class="r num">${f(G.players[0])}</td><td class="r num">${f(G.players[1])}</td></tr>`).join('') +
+    `<tr><td>Score track</td><td class="r num" colspan="2">${(G.tug||0) > 0 ? '+' : ''}${
+       Math.round(G.tug || 0)} of \u00b1${G.cfg.vpTarget || 100}${
+       vpDouble(G) ? ' \u00b7 DOUBLE' : ''}</td></tr>` +
     `<tr><td>Time paused</td><td class="r num" colspan="2">${mmss(G.pausedTime)} of ${mmss(total)} (${pct}%)</td></tr>` +
     `<tr><td>Target length</td><td class="r num" colspan="2">${G.cfg.target}:00</td></tr>`;
 }
@@ -12059,6 +12265,7 @@ function renderPause(){
 function tickRender(){
   const total = G.clock + G.pausedTime;
   document.getElementById('clock').textContent = mmss(total);
+  renderTug();
   document.getElementById('pausedTot').textContent = mmss(G.pausedTime);
   for(let i=0;i<2;i++){
     const p = G.players[i], el = document.getElementById('panel'+i), inc = income(p, G.cfg);
@@ -12073,11 +12280,6 @@ function tickRender(){
         g.style.height = (frac * 100).toFixed(1) + '%';
       }
     });
-    const hp = el.querySelector('[data-hp]');
-    if(hp) hp.innerHTML = p.hp + `<small>/${G.cfg.hqHealth}</small>`;
-    const hqbox = document.getElementById('hq'+i);
-    if(hqbox) hqbox.classList.toggle('hurt', p.hp < G.cfg.hqHealth);
-
     /* Every ability runs its own timer, so the row repaints every frame rather than on
        state changes — it is the only continuously moving thing on the panel now. */
     (p.abil || []).forEach((a, k) => {
@@ -12094,8 +12296,8 @@ function tickRender(){
         btn.disabled = !ready;
       }
     });
-    const tn = el.querySelector('[data-tablen]');
-    if(tn) tn.textContent = p.board.length + p.units.length;
+    const sv = el.querySelector('[data-sites]');
+    if(sv) sv.textContent = p.sites || 0;
     const ub = el.querySelector('[data-undobtn]'); if(ub) ub.disabled = !p.undo.length;
 
     const pb = el.querySelector('[data-playbtn]');
@@ -12110,8 +12312,42 @@ function tickRender(){
 
     el.classList.toggle('frozen', p.frozen > 0);
     const meta = document.getElementById('st'+i);
+    /* Idle says nothing. A card count is something you can see by looking at the
+       table, and the header is the one place a real warning has to be able to shout. */
     if(meta) meta.textContent = p.frozen > 0 ? `frozen ${p.frozen.toFixed(1)}s`
-      : (p.cd > 0 ? `cooldown ${p.cd.toFixed(1)}s` : `${deckSize(p)} cards`);
+      : (p.cd > 0 ? `cooldown ${p.cd.toFixed(1)}s` : '');
+  }
+}
+
+/* The track is drawn every frame because sites pay out continuously. Positive tug leans
+   to Player 1, so the fill grows right from the centre; negative grows left. */
+function renderTug(){
+  const bar = document.getElementById('tugbar');
+  if(!bar) return;
+  const T = G.cfg.vpTarget || 100, tg = G.tug || 0;
+  const frac = Math.max(-1, Math.min(1, tg / T));
+  const f = document.getElementById('tfill');
+  if(f){
+    f.style.left  = (frac >= 0 ? 50 : 50 + frac * 50) + '%';
+    f.style.width = (Math.abs(frac) * 50) + '%';
+    f.classList.toggle('b', frac < 0);
+  }
+  const v = document.getElementById('tval');
+  if(v) v.innerHTML = `<span>${tg > 0 ? '+' : ''}${Math.round(tg)} / ${T}</span>`;
+  const tight = document.body.classList.contains('phone');
+  const nm = k => (tight ? 'P' + (k + 1) : G.players[k].name)
+    + ((G.players[k].sites || 0) ? ` \u25c6${G.players[k].sites}` : '');
+  document.getElementById('tn0').textContent = nm(0);
+  document.getElementById('tn1').textContent = nm(1);
+  const dbl = vpDouble(G);
+  bar.classList.toggle('dbl', dbl && !G.over);
+  const m = document.getElementById('tmeta');
+  if(m){
+    const endS = (G.cfg.endAt || 20) * 60 - G.clock;
+    const toDbl = mmss(Math.max(0, (G.cfg.doubleAt || 10) * 60 - G.clock));
+    m.textContent = G.over ? (G.over.w < 0 ? 'draw' : (tight ? `P${G.over.w + 1}` : G.players[G.over.w].name) + ' wins')
+      : dbl  ? (tight ? `x2 \u00b7 ${mmss(Math.max(0, endS))}` : `DOUBLE \u00b7 ${mmss(Math.max(0, endS))} left`)
+             : (tight ? `x2 in ${toDbl}` : `x2 at ${toDbl}`);
   }
 }
 
@@ -12131,6 +12367,14 @@ function loop(now){
       } else renderPause();
     }
   } else advance(G, step);
+  if(G.over && !G.__said){
+    G.__said = 1;
+    const w = G.over.w;
+    const msg = w < 0 ? `Draw \u2014 ${G.over.why}`
+                      : `${G.players[w].name} wins \u2014 ${G.over.why}`;
+    sys(msg); hold(msg, null, false); renderBoth();
+    if(!netMode() || G.over.by == null) push();
+  }
   tickRender();
   requestAnimationFrame(loop);
 }
@@ -12261,7 +12505,7 @@ function scanSay(msg, bad){
 /* ---------- the buy window ----------
    It lives on the pause object rather than in a side variable, so it serialises to the
    other device and expires on the existing pause countdown instead of a second timer. */
-const BUY_WINDOW = 15;
+const BUY_WINDOW = 30;   // B3: the old 15s expired before players had read the new row
 function buyOpen(){ return (G.paused && G.pause && G.pause.buy != null) ? G.pause.buy : -1; }
 
 function armBuy(i){
@@ -12797,8 +13041,9 @@ document.getElementById('lk_clear').onclick = () => {
 const FIELDS = {
   s_bw:['baseIncome','wood'], s_bf:['baseIncome','food'], s_bg:['baseIncome','gold'],
   s_sw:['start','wood'], s_sf:['start','food'], s_sg:['start','gold'],
-  s_hp:['hqHealth'], s_ab:['abilitySlots'],
+  s_ab:['abilitySlots'],
   s_cd:['cooldown'], s_mkt:['marketRefresh'], s_frz:['freeze'], s_tgt:['target'],
+  s_vp:['vpTarget'], s_dbl:['doubleAt'], s_end:['endAt'], s_sit:['sites'], s_svp:['siteVP'],
 };
 function syncCfgInputs(){
   for(const id in FIELDS){
