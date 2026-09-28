@@ -10881,7 +10881,7 @@ const DB = {
      node and a Gold Mine needs a Gold Vein. */
   lumber:{n:'Lumber Camp', cat:'building', pers:3, buy:0, buyR:'wood', cost:{wood:12}, income:{wood:5}, hp:5, info:'Forest only · 5 Wood/min'},
   farm:{n:'Farm', cat:'building', pers:3, buy:0, buyR:'wood', cost:{wood:6,food:6}, income:{food:5}, hp:5, info:'build anywhere · 5 Food/min'},
-  mine:{n:'Gold Mine', cat:'building', pers:3, buy:0, buyR:'wood', cost:{wood:12,gold:3}, income:{gold:2}, hp:5, info:'Gold Vein only · 2 Gold/min'},
+  mine:{n:'Gold Mine', cat:'building', pers:3, buy:0, buyR:'wood', cost:{wood:15}, income:{gold:2}, hp:5, info:'Gold Vein only · 2 Gold/min'},
   /* ---- personal supply: everything below is bought with Wood, always in stock ----
      Refresh B moved Spearman, Archer, Worker, Move and Attack out of the starting deck
      and into here. Nothing but the three workstations above starts in hand. */
@@ -10990,15 +10990,17 @@ const SUBGRP = {
    config in localStorage, and Object.assign(def(), saved) let that old config win — so a
    player who started on Version A kept Version A's starting resources for ever, silently.
    The version tag is what lets a stale config be recognised and dropped. */
-const RULES_VER = 'B3.1';
+const RULES_VER = 'B3.3';
 
 function def(){ return {
   ver:RULES_VER,
-  baseIncome:{wood:5, food:5, gold:2},
-  /* 30/20/8 comes out of the pacing sim: it halves the time to a fielded unit without
-     making the opening trivial. 45/25/10 armed you by minute two and skipped the
-     build-up phase entirely. */
-  start:{wood:30, food:10, gold:3},
+  baseIncome:{wood:5, food:10, gold:2},
+  /* Wood opens the game — you build camps before you field anything. Food is doubled at
+     the start and the HQ's Food is doubled per minute, because Move and Attack are priced
+     per living unit and an army of six was outrunning a 5/min trickle.
+     Gold starts at ZERO on purpose: the market is something you earn your way into, and
+     a Gold Mine costs 3 Gold, so the first one is about 90 seconds of HQ income away. */
+  start:{wood:30, food:20, gold:0},
   /* Abilities are kept, not spent: four slots, each with its own cooldown. Two of them
      arrive filled, which is why the game opens with something to do. */
   abilitySlots:4,
