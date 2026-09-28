@@ -11028,7 +11028,7 @@ const SUBGRP = {
    config in localStorage, and Object.assign(def(), saved) let that old config win — so a
    player who started on Version A kept Version A's starting resources for ever, silently.
    The version tag is what lets a stale config be recognised and dropped. */
-const RULES_VER = 'B3.6';
+const RULES_VER = 'B3.7';
 
 function def(){ return {
   ver:RULES_VER,
@@ -11083,7 +11083,7 @@ function newPlayer(cfg, name, seat){
     res:{wood:cfg.start.wood, food:cfg.start.food, gold:cfg.start.gold},
     incAdj:{wood:0, food:0, gold:0},
     earned:{wood:0, food:0, gold:0}, spent:{wood:0, food:0, gold:0},
-    cd:0, frozen:0, sites:0, vpScored:0, lost:0,
+    cd:0, frozen:0, sites:0, flags:{}, vpScored:0, lost:0,
     plays:0, buys:0, exiled:0, goldOnBuys:0, woodOnBuys:0,
     goldOnRefresh:0, undo:[],
   };
@@ -11137,6 +11137,7 @@ function fixPlayer(p){
   if(!Array.isArray(p.abil)) p.abil = [];
   if(!p.upg) p.upg = {};
   if(typeof p.sites !== 'number') p.sites = 0;
+  if(!p.flags || typeof p.flags !== 'object') p.flags = {};
   if(typeof p.vpScored !== 'number') p.vpScored = 0;
   if(typeof p.lost !== 'number') p.lost = 0;
   p.abil.forEach(a => { if(typeof a.cd !== 'number') a.cd = 0; });
@@ -11199,24 +11200,27 @@ function siteCost(G){
 function sitesFree(G){
   return (G.cfg.sites || 3) - (G.players[0].sites || 0) - (G.players[1].sites || 0);
 }
-/* Capturing takes a free site if there is one, otherwise it takes one off the opponent —
-   which is the whole point of a tug of war rather than two separate counters. */
+/* B3.7: capturing only ever takes a FREE site. A held site has to be given up first — its
+   owner scans the flag that was knocked off it — because a player can clear a site by
+   walking onto it and still choose not to pay for it. Taking it is a separate decision. */
 function actCaptureSite(G, i){
-  const p = G.players[i], o = G.players[1 - i], pr = siteCost(G);
-  const steal = sitesFree(G) <= 0;
-  if(steal && !(o.sites > 0)) return null;
+  const p = G.players[i], pr = siteCost(G);
+  if(sitesFree(G) <= 0) return null;
   if(!canAfford(p, pr)) return null;
   snap(p, 'capture site');
   RES.forEach(r => { if(pr[r]){ p.res[r] -= pr[r]; p.spent[r] += pr[r]; } });
-  if(steal) o.sites--;
   p.sites = (p.sites || 0) + 1;
   p.cd = G.cfg.cooldown;
-  return `captured a sacred site — ${priceText(pr)}${steal ? ' — taken from ' + o.name : ''}`
-       + ` · holds ${p.sites}`;
+  return `captured a sacred site — ${priceText(pr)} · holds ${p.sites}`;
 }
 function canCaptureSite(G, i){
-  const p = G.players[i];
-  return (sitesFree(G) > 0 || (G.players[1-i].sites || 0) > 0) && canAfford(p, siteCost(G));
+  return sitesFree(G) > 0 && canAfford(G.players[i], siteCost(G));
+}
+function captureRefusal(G, i){
+  if(sitesFree(G) > 0) return `Need ${priceText(siteCost(G))} to capture`;
+  return (G.players[1-i].sites || 0) > 0
+    ? 'No free site — the holder scans their flag when it is knocked off'
+    : 'You already hold every site';
 }
 
 function actReleaseSite(G, i){
@@ -11227,6 +11231,32 @@ function actReleaseSite(G, i){
   return `lost a sacred site · holds ${p.sites}`;
 }
 
+
+/* ---------- Site Flags (B3.7) ----------
+   Each player has three printed flags, 1FLAG-01..03 / 2FLAG-01..03, with the QR under the
+   base. The app counts sites; it never needs to know WHICH site a flag stands on, because
+   every site pays the same. p.flags only remembers which flags are standing, so a scan can
+   tell placing it from picking it up:
+     - flag in hand  -> capture a free site (pays the site cost)
+     - flag standing -> that site is lost and goes neutral; the flag is back in hand
+   A site is never taken straight off the opponent. Whoever knocks your flag off may leave
+   the site empty, so you scan your fallen flag, and they scan theirs if they want it. */
+function flagScan(G, i, code, copy){
+  const p = G.players[i];
+  if(!p.flags) p.flags = {};
+  const name = `Flag ${copy}`;
+  if(p.flags[code]){
+    delete p.flags[code];
+    /* The count can already be lower if the tap "Lost" button was used for this site. */
+    if(!((p.sites || 0) > 0)) return {log:`${name} back in hand`, kind:'lost'};
+    const r = actReleaseSite(G, i);
+    return {log:`${r} — ${name} back in hand`, kind:'lost'};
+  }
+  if(!canCaptureSite(G, i)) return {err: captureRefusal(G, i)};
+  const r = actCaptureSite(G, i);
+  p.flags[code] = 1;
+  return {log:`${r} — ${name} planted`, kind:'capture'};
+}
 
 function advance(G, dt){
   G.clock += dt;
@@ -11785,7 +11815,7 @@ function applyDoc(raw, force){
      empty value. Object.assign skips absent keys, so without this the receiver would
      keep showing a building its owner had already lost. Reset the collections first,
      then let the snapshot fill in whatever it actually carries. */
-  const EMPTY = {board:[], owned:{}, pers:{}, cards:{}, units:[], abil:[]};
+  const EMPTY = {board:[], owned:{}, pers:{}, cards:{}, units:[], abil:[], flags:{}};
   (d.players || []).forEach((sp, i) => {
     const t = G.players[i], keep = t.undo;
     for(const k in EMPTY) if(!(k in sp)) t[k] = Array.isArray(EMPTY[k]) ? [] : {};
@@ -12044,7 +12074,7 @@ function renderPanel(i){
      way the app can learn who holds them. */
   if(!ro && G.phase !== 'setup'){
     const pr = siteCost(G), held = p.sites || 0;
-    const canTake = (sitesFree(G) > 0 || (G.players[1-i].sites || 0) > 0) && canAfford(p, pr);
+    const canTake = canCaptureSite(G, i);
     h += `<div class="sites">
         <span class="slab">Sacred sites</span>
         <button data-act="site" data-d="1" ${canTake ? '' : 'disabled'}>Capture &middot; ${priceText(pr)}</button>
@@ -12282,7 +12312,7 @@ function handleAct(i, b){
     const r = d > 0 ? actCaptureSite(G, i) : actReleaseSite(G, i);
     if(!r){
       sndDenied();
-      scanSay(d > 0 ? `Need ${priceText(siteCost(G))} to capture` : 'You hold no sites', true);
+      scanSay(d > 0 ? captureRefusal(G, i) : 'You hold no sites', true);
       return;
     }
     say(i, r); if(d > 0) sndBuy(); else sndDenied();
@@ -12687,7 +12717,35 @@ function codeOwner(c){
   return -1;
 }
 
+const FLAG_RE = /^([12])FLAG-(\d{2})$/;
+
+function doScanFlag(m){
+  const i = +m[1] - 1, code = m[0], copy = +m[2];
+  if(netMode() && i !== NET.seat) return;          // the other tablet owns this scan
+  if(G.over){ sndDenied(); scanSay('The game is over', true); return; }
+  if(G.phase === 'setup'){ sndDenied(); scanSay('Sites open once the game starts', true); return; }
+  const p = G.players[i];
+  const placing = !(p.flags && p.flags[code]);
+  const buying = buyOpen();
+  /* Capturing is an action, so it waits for the table like any other: not while the other
+     player has the game paused. Your own buy window is fine — the capture closes it.
+     Losing a site is a fact about the table and is always accepted. */
+  if(placing && G.paused && buying !== i){
+    sndDenied(); scanSay('Game is paused', true); return;
+  }
+  const r = flagScan(G, i, code, copy);
+  if(r.err){
+    sndDenied(); scanSay(r.err, true); return;
+  }
+  say(i, r.log);
+  if(r.kind === 'capture'){ sndBuy(); scanSay(r.log); if(buying === i) release(); }
+  else { sndDefeat(); scanSay(r.log, true); }
+  renderBoth(); renderStats(); push();
+}
+
 function onScan(raw){
+  const fm = FLAG_RE.exec(String(raw == null ? '' : raw).trim().toUpperCase());
+  if(fm){ doScanFlag(fm); return; }
   const c = parseCode(raw);
   if(!c){ sndDenied(); scanSay('Code not recognised', true); return; }
 
@@ -13206,7 +13264,7 @@ document.getElementById('siteBtn').onclick = () => {
   const i = buyOpen();
   if(i < 0 || !mySeat(i)) return;
   const r = actCaptureSite(G, i);
-  if(!r){ sndDenied(); scanSay(`Need ${priceText(siteCost(G))} to capture`, true); return; }
+  if(!r){ sndDenied(); scanSay(captureRefusal(G, i), true); return; }
   say(i, r); sndBuy(); scanSay(r);
   release(); renderBoth(); renderStats(); push();
 };
