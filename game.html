@@ -10231,7 +10231,7 @@ header{display:flex; flex-wrap:wrap; align-items:center; gap:10px 16px; padding:
 .acts.three .cdfill{top:auto; bottom:0; height:3px; border-left:0; background:var(--alert)}
 .acts.three .btn.cooling .blab{opacity:1}
 .acts.three .btn.cooling .blab, .acts.three .btn.cooling .cdsub{text-shadow:none}
-.acts.three .cdsub{font-size:11px; opacity:.7}
+.acts.three .cdsub{font-size:10.5px; opacity:.75; top:2px; right:5px}
 @media (max-width:430px){ .acts.three{grid-template-columns:1fr 1fr} .acts.three .btn:first-child{grid-column:1/-1} }
 .table.f2f .cardlist{max-height:250px}
 .table.f2f .tugbar{padding:3px 9px; gap:7px}
@@ -10391,7 +10391,7 @@ body.phone .panel.remote .rostat{min-height:0; padding:5px; font-size:11.5px}
   pointer-events:none}
 .tval span{font-family:'JetBrains Mono',monospace; font-weight:700; font-size:12px;
   color:var(--ink); background:var(--surface); border:1px solid var(--line);
-  border-radius:99px; padding:0 8px; line-height:1.4}
+  border-radius:99px; padding:0 8px; line-height:1.4; white-space:nowrap}
 .tmeta{font-size:11px; color:var(--ink-3); white-space:nowrap; flex:none;
   font-family:'JetBrains Mono',monospace}
 .tugbar.dbl{border-color:var(--alert)}
@@ -10517,10 +10517,10 @@ body.phone .ab .abn{font-size:15px}
 .cdfill{display:none; position:absolute; top:0; right:0; bottom:0; width:0; z-index:0;
   background:var(--cdveil); border-left:2px solid var(--cdedge)}
 .btn.cooling .cdfill{display:block}
-.blab, .cdsub{position:relative; z-index:1}
-.cdsub{display:block; font-size:12.5px; font-weight:700; letter-spacing:.03em; opacity:.9;
-  font-family:'JetBrains Mono',ui-monospace,monospace; line-height:1.1; min-height:0}
-.btn.cooling .cdsub{margin-top:3px}
+.blab{position:relative; z-index:1}
+.cdsub{position:absolute; z-index:2; top:3px; right:7px;
+  font-size:12px; font-weight:700; letter-spacing:.03em; opacity:.9;
+  font-family:'JetBrains Mono',ui-monospace,monospace; line-height:1}
 .btn.cooling .blab{opacity:.82}
 /* the bright leading edge sweeps behind the label — a shadow keeps both readable */
 .btn.cooling .blab, .btn.cooling .cdsub{text-shadow:0 0 4px var(--cdsh), 0 1px 3px var(--cdsh)}
@@ -10705,6 +10705,7 @@ body.phone .toast{font-size:16px; padding:10px 15px; bottom:12px; max-width:94vw
   <button class="btn pri" id="startBtn" hidden>Start game</button>
   <button class="btn" id="refreshBtn" hidden>Refresh market</button>
   <button class="btn pri" id="resolveBtn" hidden>Attack resolved</button>
+  <button class="btn" id="siteBtn" hidden>Capture site</button>
   <button class="btn" id="cancelBuyBtn" hidden>Cancel</button>
 </div>
 
@@ -10878,9 +10879,9 @@ const DB = {
   /* Three copies each in B3. Economy no longer scales by shopping — the market income
      buildings are gone — it scales by taking ground, because a Lumber Camp needs a Forest
      node and a Gold Mine needs a Gold Vein. */
-  lumber:{n:'Lumber Camp', cat:'building', pers:3, buy:0, buyR:'wood', cost:{wood:10}, income:{wood:5}, cap:3, per:{wood:3}, hp:5, info:'Forest only'},
-  farm:{n:'Farm', cat:'building', pers:3, buy:0, buyR:'wood', cost:{wood:5,food:5}, income:{food:5}, cap:3, per:{food:3}, hp:5, info:'place a Field'},
-  mine:{n:'Gold Mine', cat:'building', pers:3, buy:0, buyR:'wood', cost:{wood:10,gold:3}, income:{gold:2}, cap:3, per:{gold:1}, hp:5, info:'Gold Vein only'},
+  lumber:{n:'Lumber Camp', cat:'building', pers:3, buy:0, buyR:'wood', cost:{wood:12}, income:{wood:5}, hp:5, info:'Forest only · 5 Wood/min'},
+  farm:{n:'Farm', cat:'building', pers:3, buy:0, buyR:'wood', cost:{wood:6,food:6}, income:{food:5}, hp:5, info:'build anywhere · 5 Food/min'},
+  mine:{n:'Gold Mine', cat:'building', pers:3, buy:0, buyR:'wood', cost:{wood:12,gold:3}, income:{gold:2}, hp:5, info:'Gold Vein only · 2 Gold/min'},
   /* ---- personal supply: everything below is bought with Wood, always in stock ----
      Refresh B moved Spearman, Archer, Worker, Move and Attack out of the starting deck
      and into here. Nothing but the three workstations above starts in hand. */
@@ -10888,9 +10889,10 @@ const DB = {
   archer:{n:'Archer', cat:'unit', sub:'military', pers:3, buy:4, buyR:'wood', cost:{food:7}, beats:'Spearmen', info:'2 wht · rng 2 · hp 3 · counters Spearmen'},
   /* New in B3, and the third leg of the counter triangle. Fast and dearest. */
   horse:{n:'Horsemen', cat:'unit', sub:'military', pers:3, buy:6, buyR:'wood', cost:{food:9}, beats:'Archers', info:'1 grn 1 wht · mv2 · hp 6 · counters Archers'},
-  /* Each worker costs one Wood more than the last, so a wide economy has a rising price
-     rather than a flat one. buyStep drives that. */
-  worker:{n:'Worker', cat:'unit', sub:'worker', pers:10, buy:3, buyStep:1, buyR:'wood', fung:1, cost:{food:5}, info:'staff a building · +1 Wood each', act:'worker'},
+  /* Retired in B3.1. Workers are gone: camps pay a flat rate and the economy grows by
+     taking ground instead. Kept in the table ONLY so the printed copies still resolve
+     when scanned and can say so, rather than reading as an unknown card. */
+  worker:{n:'Worker', cat:'unit', sub:'worker', fung:1, retired:1, info:'no longer used — camps pay a flat rate'},
   /* buyAdd is a ladder, not a rate: each entry is what THAT purchase adds on top of the
      one before. 3 -> 6 -> 11, so your third action card is a real commitment. */
   move:{n:'Move', cat:'ability', pers:1, buyR:'wood', perUnit:1, cool:12, start:1, info:'move EVERY unit · 1 Food each', pauseFor:3},
@@ -10937,6 +10939,13 @@ const DB = {
   mint:{n:'Mint', cat:'building', rar:'R', buy:10, cost:{wood:15,gold:5}, income:{gold:4}, cap:2, per:{gold:2}, hp:5, retired:1},
   barracks:{n:'Barracks', cat:'building', rar:'R', buy:9, cost:{wood:14}, hp:7, flag:'barracks', info:'military −2 Food'},
   citadel:{n:'Citadel', cat:'building', rar:'E', buy:18, cost:{wood:25}, hp:12, info:'adj. bldgs +1 armor'},
+  /* New in B3.1. Lake and Mountain tiles did nothing but block — these give them a use
+     without printing income, which is the category the 27 Sep pass cut from the market.
+     Both are placed from an adjacent hex you hold a unit on, since nothing can stand on
+     impassable terrain to build there. */
+  bridge:{n:'Bridge', cat:'building', rar:'R', buy:7, cost:{wood:10}, hp:4, info:'place on a Lake · units may cross'},
+  mpass:{n:'Mountain Pass', cat:'building', rar:'R', buy:6, cost:{wood:10}, hp:5, info:'place on a Mountain · units may cross'},
+  keep:{n:'Keep', cat:'building', rar:'E', buy:16, cost:{wood:20}, hp:14, info:'2 grn at rng 2 · arm 2'},
   /* market — units */
   maa:{n:'Men at Arms', cat:'unit', sub:'military', rar:'C', buy:8, cost:{food:8,wood:2}, info:'2 wht · hp 5 · arm 1'},
   skirm:{n:'Skirmisher', cat:'unit', sub:'military', rar:'C', buy:4, cost:{food:6,wood:2}, info:'mv2 · 1 wht · hp 3'},
@@ -10947,7 +10956,7 @@ const DB = {
   treb:{n:'Trebuchet', cat:'unit', sub:'military', rar:'R', buy:14, cost:{food:12,wood:8}, info:'siege 3 · rng 3'},
   sapper:{n:'Sapper', cat:'unit', sub:'military', rar:'R', buy:9, cost:{food:8,wood:3}, info:'siege 4 · no atk vs units'},
   champ:{n:'Champion', cat:'unit', sub:'military', rar:'E', buy:20, cost:{food:18,wood:4}, info:'2 blu · hp 9 · arm 2'},
-  medic:{n:'Field Medic', cat:'unit', sub:'support', rar:'C', buy:5, cost:{food:6,wood:2}, info:'action: heal 3'},
+  medic:{n:'Field Medic', cat:'unit', sub:'support', rar:'C', buy:5, cost:{food:6,wood:2}, info:'action: heal 1 white die'},
   eng:{n:'Engineer', cat:'unit', sub:'support', rar:'C', buy:5, cost:{food:5,wood:3}, info:'action: repair 3'},
   bearer:{n:'Standard Bearer', cat:'unit', sub:'support', rar:'R', buy:11, cost:{food:10,wood:3}, info:'passive: +1 wht nearby'},
 };
@@ -10962,6 +10971,7 @@ const ABBR = {
   eng:'ENGNR', bearer:'BEARR',
   droad:'DROAD', maa:'MENAT', horse:'HORSE', charge:'CHARG', proad:'PROAD', sgate:'SGATE',
   moveup1:'MVUP1', moveup2:'MVUP2', atkup1:'ATUP1', atkup2:'ATUP2',
+  bridge:'BRIDG', mpass:'MPASS', keep:'KEEP-',
 };
 /* one physical card per copy: owner(1) + design(5) + copy(2) */
 const BYCODE = {}; for(const k in ABBR) BYCODE[ABBR[k]] = k;
@@ -10971,7 +10981,7 @@ const CATS = {building:'Buildings', unit:'Units', ability:'Abilities'};
 /* 'upgrade' is deliberately absent: upgrades are supply-only, and the market browse
    screen walks CATS. */
 const SUBGRP = {
-  unit:    [['military','Military'], ['support','Support'], ['worker','Workers']],
+  unit:    [['military','Military'], ['support','Support']],
   ability: [[null,'Abilities'], ['filler','Filler']],
   building:[[null,'Buildings']],
 };
@@ -10980,7 +10990,7 @@ const SUBGRP = {
    config in localStorage, and Object.assign(def(), saved) let that old config win — so a
    player who started on Version A kept Version A's starting resources for ever, silently.
    The version tag is what lets a stale config be recognised and dropped. */
-const RULES_VER = 'B3.0';
+const RULES_VER = 'B3.1';
 
 function def(){ return {
   ver:RULES_VER,
@@ -10993,7 +11003,12 @@ function def(){ return {
      arrive filled, which is why the game opens with something to do. */
   abilitySlots:4,
   marketRefresh:4,
-  cooldown:1, freeze:5, target:20,
+  /* The per-player play delay. 1s let a player machine-gun scans; 3s is a real beat
+     without swallowing the 12s Move and Attack cooldowns. */
+  cooldown:3, freeze:5, target:20,
+  /* Move used to pause a flat 3s however big the army was. It now grows with the number
+     of units actually being moved, capped so a big army never stalls the game. */
+  movePauseCap:12,
   /* ---- the tug of war ----------------------------------------------------
      One marker on a track from -vpTarget to +vpTarget. Positive is Player 1.
      Scoring pulls it your way; the opponent scoring pulls it back, so a player about to
@@ -11080,7 +11095,6 @@ function income(p, cfg){
   for(const b of p.board){
     const c = DB[b.id];
     if(c.income) RES.forEach(r => { if(c.income[r]) inc[r] += c.income[r]; });
-    if(c.per)    RES.forEach(r => { if(c.per[r])    inc[r] += c.per[r] * b.workers; });
   }
   RES.forEach(r => inc[r] += p.incAdj[r]);
   return inc;
@@ -11146,6 +11160,11 @@ function actCaptureSite(G, i){
   return `captured a sacred site — ${priceText(pr)}${steal ? ' — taken from ' + o.name : ''}`
        + ` · holds ${p.sites}`;
 }
+function canCaptureSite(G, i){
+  const p = G.players[i];
+  return (sitesFree(G) > 0 || (G.players[1-i].sites || 0) > 0) && canAfford(p, siteCost(G));
+}
+
 function actReleaseSite(G, i){
   const p = G.players[i];
   if(!(p.sites > 0)) return null;
@@ -11249,8 +11268,19 @@ function actUse(G, i, slot){
     return {log:`used ${c.n}${tail} — ${G.players[1-i].name} frozen ${G.cfg.freeze}s`};
   }
   if(c.act === 'attack') return {log:`used ${c.n}${tail}`, hold:`Attack — ${p.name} · scan anything destroyed`};
-  if(c.pauseFor) return {log:`used ${c.n}${tail}`, wait:c.pauseFor};
+  if(c.pauseFor){
+    const w = movePause(G, p, c);
+    return {log:`used ${c.n}${tail}`, wait:w};
+  }
   return {log:`used ${c.n}${tail}`};
+}
+
+/* Moving twelve units takes longer than moving two, and the old flat 3 seconds made a
+   big army feel free to shuffle. One extra second per two units, capped. */
+function movePause(G, p, c){
+  const base = c.pauseFor || 3;
+  const n = (p.units || []).length;
+  return Math.min(G.cfg.movePauseCap || 12, base + Math.floor(n / 2));
 }
 
 function actStaff(G, i, bIdx, workerCode){
@@ -11283,6 +11313,10 @@ function findOnTable(i, code){
 
 /* With no deck and no discard, destroyed means gone: the card leaves the table and does
    not come back. Reclaim is the only way to get one out of the exile pile. */
+/* B3.1: a defeated unit goes back on your supply stack instead of out of the game. The
+   card is yours again and you pay its full price again to field it. That makes the three
+   copies a limit on how many can be ON THE TABLE at once rather than a lifetime budget —
+   so attrition no longer wins games on its own, and the kill VP is the whole penalty. */
 function actLoseUnit(G, i, uIdx){
   const p = G.players[i], u = p.units[uIdx];
   if(!u) return null;
@@ -11291,9 +11325,10 @@ function actLoseUnit(G, i, uIdx){
   const id = u.id;
   if(p.owned[id]){ p.owned[id]--; if(!p.owned[id]) delete p.owned[id]; }
   if(u.code) delete p.cards[u.code];
-  p.exiled++; p.lost++;
+  p.pers[id] = (p.pers[id] || 0) + 1;
+  p.lost++;
   const vp = awardKill(G, i, id);
-  return `${DB[id].n} destroyed — out of the game`
+  return `${DB[id].n} defeated — back on your supply stack`
        + (vp ? ` · ${G.players[1-i].name} +${vp} VP` : '');
 }
 
@@ -11413,12 +11448,23 @@ function actAcquire(G, i, id, opts){
   p.buys++; p.cd = G.cfg.cooldown;
   const br = buyRes(c);
   if(br === 'gold') p.goldOnBuys += c.buy; else p.woodOnBuys += c.buy;
-  p.pers[id] = (p.pers[id] || 0) + 1;          // it is one of your stacks now
   p.owned[id] = (p.owned[id] || 0) + 1;
   if(opts && opts.code) p.cards[opts.code] = 1;
+
+  /* B3.1: an ability bought off the row goes straight into a free slot. It used to land
+     in your supply and need a second scan to reach a slot, which was two steps for a card
+     that costs nothing more to put out. With every slot full it still goes to supply, so
+     you can retire something and take it up afterwards. */
+  if(c.cat === 'ability' && abilFree(p, G.cfg) > 0){
+    p.abil.push({id, code:(opts && opts.code) || null, cd:0, uses:0});
+    return {log:`bought ${c.n} — ${priceText(pr)} — straight into an ability slot`};
+  }
+
+  p.pers[id] = (p.pers[id] || 0) + 1;          // it is one of your stacks now
   const left = priceText(fullPrice(p, id));
   return {log:`bought ${c.n} — ${priceText(pr)} — into your supply` +
-              (left === 'free' ? ', ready to deploy' : `, ${left} to deploy`)};
+              (left === 'free' ? ', ready to deploy' : `, ${left} to deploy`) +
+              (c.cat === 'ability' ? ' · every slot is full' : '')};
 }
 
 function buyBlocked(G, i, id){
@@ -12051,6 +12097,12 @@ function tone(freq, dur, gain, type){
 const sndGain  = () => tone(1180, 0.09, 0.18);                       // +1 resource
 const sndDraw  = () => { tone(720, 0.07, 0.15); setTimeout(() => tone(1080, 0.09, 0.15), 70); };
 const sndDenied = () => tone(180, 0.16, 0.16, 'square');
+/* A defeat is not a refusal. It had been sharing the denial buzz, so losing a Knight
+   sounded exactly like mistyping. Three falling notes, slower and lower than anything
+   else the app plays. */
+const sndDefeat = () => { tone(420, 0.13, 0.20, 'sawtooth');
+  setTimeout(() => tone(310, 0.15, 0.19, 'sawtooth'), 120);
+  setTimeout(() => tone(190, 0.30, 0.20, 'sawtooth'), 260); };
 
 /* every discrete action re-syncs the linked device; pure menu steps do not */
 const NOPUSH = {cat:1, back:1, src:1};
@@ -12259,6 +12311,13 @@ function renderPause(){
     rb2.textContent = `Refresh market · ${G.cfg.marketRefresh}g`;
     rb2.disabled = buying < 0 || G.players[buying].res.gold < G.cfg.marketRefresh;
   }
+  /* A Sacred Site is a node tile with no code, so the HQ scan is what reaches it. */
+  const stb = document.getElementById('siteBtn');
+  if(stb){
+    stb.hidden = !(buying >= 0 && mySeat(buying));
+    stb.textContent = `Capture site · ${priceText(siteCost(G))}`;
+    stb.disabled = buying < 0 || !canCaptureSite(G, buying);
+  }
   document.getElementById('pauseCount').textContent = (G.pause && G.pause.t != null) ? G.pause.t.toFixed(1) + 's' : '';
 }
 
@@ -12332,9 +12391,15 @@ function renderTug(){
     f.style.width = (Math.abs(frac) * 50) + '%';
     f.classList.toggle('b', frac < 0);
   }
-  const v = document.getElementById('tval');
-  if(v) v.innerHTML = `<span>${tg > 0 ? '+' : ''}${Math.round(tg)} / ${T}</span>`;
   const tight = document.body.classList.contains('phone');
+  const v = document.getElementById('tval');
+  if(v){
+    const n = Math.round(Math.abs(tg));
+    const who = tg > 0 ? 0 : 1;
+    const nmShort = k => tight ? 'P' + (k + 1) : G.players[k].name;
+    v.innerHTML = n < 1 ? `<span>level &middot; ${T} to win</span>`
+      : `<span>${nmShort(who)} leads ${n} / ${T}</span>`;
+  }
   const nm = k => (tight ? 'P' + (k + 1) : G.players[k].name)
     + ((G.players[k].sites || 0) ? ` \u25c6${G.players[k].sites}` : '');
   document.getElementById('tn0').textContent = nm(0);
@@ -12552,6 +12617,10 @@ function onScan(raw){
     if(i < 0){ sndDenied(); scanSay('Not an HQ card', true); return; }
     if(netMode() && i !== NET.seat){ scanSay(`That is Player ${i+1}'s HQ`, true); return; }
     if(G.phase === 'setup'){ sndDenied(); scanSay('Finish the opening hands first', true); return; }
+    /* B3.1: the HQ scan is also how a Sacred Site is claimed. A site is a node tile with
+       no code to scan, so the HQ card stands in for it — but buying is by far the commoner
+       reason to scan an HQ, so the scan still just opens the buy window and the capture
+       sits on that window as one more button. No extra step was added to buying. */
     armBuy(i); return;
   }
 
@@ -12649,7 +12718,7 @@ function doScanLoss(i, c){
   else if(at.kind === 'unit') r = actLoseUnit(G, i, at.ui);
   else r = actLoseWorker(G, i, at.bi, at.si);
   if(!r){ sndDenied(); return; }
-  say(i, r); sndDenied(); scanSay(r, true);   // a loss should not sound like a success
+  say(i, r); sndDefeat(); scanSay(r, true);
   renderBoth(); renderStats(); push();
 }
 
@@ -12715,8 +12784,25 @@ function doScanUse(i, k){
 /* ---------- camera ----------
    Full-frame decode of a centre crop, downscaled: jsQR's cost is pixel-bound, and a
    21-module symbol filling a third of the frame survives the reduction easily. */
-const SCAN = {on:false, stream:null, video:null, cv:null, ctx:null, raf:0, last:'', lastT:0};
+const SCAN = {on:false, stream:null, video:null, cv:null, ctx:null, raf:0, last:'', lastT:0, nextT:0};
 const CROP = 0.72, MAXW = 480, DUP_MS = 1600;
+
+/* How often the frame is actually decoded.
+
+   This used to decode on EVERY animation frame. Measured on a desktop core, one jsQR pass
+   over the 480x270 crop costs 7.6ms and the getImageData that feeds it another 0.7 — so at
+   60fps the page burned about 500ms of CPU per second of wall clock, half a core, purely
+   on scanning. A phone core is slower than that, so it simply ran flat out the whole game
+   and got hot. (The panel repaint, the other suspect, costs 0.05ms a frame — 3ms per
+   second. It was never the problem.)
+
+   A card being held up to a lens is not moving, so 10 looks a second is ample: the worst
+   case is 100ms of extra wait before the beep, against a human reaction time around 200ms.
+   That is a 6x cut in scanning work for no practical loss.
+
+   SCAN_HZ is the one number to change if scanning ever feels sluggish. */
+const SCAN_HZ = 10;
+const SCAN_MS = 1000 / SCAN_HZ;
 
 function camReason(e){
   const n = (e && e.name) || '';
@@ -12752,8 +12838,13 @@ async function camStart(){
   if(b) b.textContent = 'Starting…';
   let stream = null;
   try{
+    /* 720p at 30fps keeps the sensor, the image pipeline and the compositor busy for
+       frames that are thrown away — the crop is downscaled to 480 wide before decoding
+       either way. Asking for less is a real power saving and costs no decode range.
+       These are `ideal`, so a camera that cannot do them still starts. */
     stream = await navigator.mediaDevices.getUserMedia(
-      {video:{facingMode:{ideal:'environment'}, width:{ideal:1280}, height:{ideal:720}}, audio:false});
+      {video:{facingMode:{ideal:'environment'}, width:{ideal:960}, height:{ideal:540},
+              frameRate:{ideal:15, max:30}}, audio:false});
   }catch(e){
     try{ stream = await navigator.mediaDevices.getUserMedia({video:true, audio:false}); }
     catch(e2){ SCAN.on = false; camLabel(camReason(e2), true); return; }
@@ -12766,6 +12857,7 @@ async function camStart(){
   SCAN.cv = document.createElement('canvas');
   SCAN.ctx = SCAN.cv.getContext('2d', {willReadFrequently:true});
   SCAN.on = true;
+  SCAN.nextT = 0;
   camLabel('Camera on — scan a card');
   try{ localStorage.setItem('bo-cam', '1'); }catch(e){}
   SCAN.raf = requestAnimationFrame(camLoop);
@@ -12785,6 +12877,14 @@ function camStop(){
 
 function camLoop(){
   if(!SCAN.on) return;
+  /* The rAF wake itself is free; the decode below is not. Gate on the clock so the phone
+     can idle between looks instead of decoding 60 times a second. rAF stays the driver
+     rather than a timer because the browser stops it when the page is hidden, which is
+     exactly when scanning should stop. */
+  const now = performance.now();
+  if(now < SCAN.nextT){ SCAN.raf = requestAnimationFrame(camLoop); return; }
+  SCAN.nextT = now + SCAN_MS;
+
   const v = SCAN.video;
   if(v && v.readyState >= 2 && v.videoWidth){
     const vw = v.videoWidth, vh = v.videoHeight;
@@ -12992,6 +13092,14 @@ function fillLinkInputs(){
 
 /* ---------- scanning + link controls ---------- */
 document.getElementById('camBtn').onclick = () => { SCAN.on ? camStop() : camStart(); };
+document.getElementById('siteBtn').onclick = () => {
+  const i = buyOpen();
+  if(i < 0 || !mySeat(i)) return;
+  const r = actCaptureSite(G, i);
+  if(!r){ sndDenied(); scanSay(`Need ${priceText(siteCost(G))} to capture`, true); return; }
+  say(i, r); sndBuy(); scanSay(r);
+  release(); renderBoth(); renderStats(); push();
+};
 document.getElementById('cancelBuyBtn').onclick = () => cancelBuy();
 document.getElementById('refreshBtn').onclick = () => {
   const i = buyOpen();
