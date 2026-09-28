@@ -10652,6 +10652,34 @@ body.phone .toast{font-size:16px; padding:10px 15px; bottom:12px; max-width:94vw
 .setupbox .setupn{display:flex; align-items:baseline; gap:7px}
 .setupbox .setupn b{font-family:'JetBrains Mono',monospace; font-size:40px; color:var(--go); line-height:1}
 .setupbox .setupn span{font-size:15px; color:var(--ink-2)}
+.setupbox.ready{border-style:solid}
+.camprow{display:flex; flex-wrap:wrap; gap:6px; justify-content:center}
+.campchip{font-size:12px; font-weight:600; padding:3px 9px; border-radius:99px;
+  border:1px dashed var(--line); color:var(--ink-3)}
+.campchip.in{border-style:solid; border-color:var(--go); background:var(--go);
+  color:var(--go-ink)}
+/* One phone showing BOTH setup panels is the tightest case in the app — two full boxes,
+   a wrapping banner and a score track that has nothing to say yet. It scrolled before
+   this screen gained its camp list; now it does not. */
+body.phone .setupbox{padding:9px; gap:5px}
+body.phone .setupbox .setupn b{font-size:26px}
+body.phone .setupbox .setupn span{font-size:13px}
+body.phone .setupbox .note{font-size:11px; line-height:1.35}
+body.phone .campchip{font-size:10.5px; padding:2px 7px}
+body.phone .camprow{gap:4px}
+/* nothing has scored during setup, so the track reads "level" and costs a row */
+body.phone .table.setupmode #tugbar{display:none}
+/* The short-phone block that compacts everything else lives EARLIER in this file, so at
+   equal specificity the rules above would win and quietly undo it — the same media-block
+   masking that once cost two rounds of chasing the wrong element. Repeat the step here,
+   after them, so an SE with Safari's chrome showing still fits. */
+@media (max-height:760px){
+  body.phone .setupbox{padding:7px; gap:4px}
+  body.phone .setupbox .setupn b{font-size:22px}
+  body.phone .setupbox .setupn span{font-size:12px}
+  body.phone .setupbox .note{font-size:10.5px; line-height:1.3}
+  body.phone .campchip{font-size:10px; padding:1px 6px}
+}
 
 /* the draw readout is no longer tappable — drawing is a scan */
 .drawbtn.cold{opacity:.45}
@@ -10917,9 +10945,19 @@ const DB = {
   ffood:{n:'Food', cat:'ability', sub:'filler', cost:{}, gain:{food:1}, retired:1, info:'+1 Food'},
   /* the rest of the personal supply */
 
-  droad:{n:'Dirt Road', cat:'building', pers:3, buy:6, buyR:'wood', cost:{wood:3}, hp:3, info:'extends network · hp 3'},
+  /* Retired in B3.6. Buildings go wherever you hold a unit now, so there is no network
+     for a road to extend and the card did nothing. Kept in the table only so the printed
+     copies still resolve when scanned and say so. */
+  droad:{n:'Dirt Road', cat:'building', retired:1, info:'no longer used — buildings need a unit, not a road'},
 
-  gate:{n:'Gate', cat:'building', pers:3, buy:12, buyR:'wood', cost:{wood:10}, hp:7, info:'blocks a path · hp 7'},
+  /* The gate that goes on the map is a physical piece; the card never leaves your hand.
+     So one card is enough — scan it, place a gate, put the card back and scan it again
+     when you want another. `tok` is what makes it reusable: it is a purchase slip rather
+     than the object, so it does not deplete, it stamps no ownership on a printed code,
+     and each gate is an anonymous entry on the board. How many you can have is bounded by
+     Wood and by how many pieces are in the box, not by the deck. */
+  gate:{n:'Gate', cat:'building', pers:1, tok:1, buy:12, buyR:'wood', cost:{wood:10}, hp:7,
+        info:'blocks a path · hp 7 · rescan to buy another'},
   /* market — abilities */
   wild:{n:'Wild', cat:'ability', rar:'C', buy:5, cost:{food:4}, cool:15, info:'move OR attack', pauseFor:3},
   charge:{n:'Charge', cat:'ability', rar:'C', buy:7, cost:{food:5}, cool:30, info:'move AND attack', act:'attack'},
@@ -10990,17 +11028,23 @@ const SUBGRP = {
    config in localStorage, and Object.assign(def(), saved) let that old config win — so a
    player who started on Version A kept Version A's starting resources for ever, silently.
    The version tag is what lets a stale config be recognised and dropped. */
-const RULES_VER = 'B3.3';
+const RULES_VER = 'B3.6';
 
 function def(){ return {
   ver:RULES_VER,
   baseIncome:{wood:5, food:10, gold:2},
-  /* Wood opens the game — you build camps before you field anything. Food is doubled at
-     the start and the HQ's Food is doubled per minute, because Move and Attack are priced
-     per living unit and an army of six was outrunning a 5/min trickle.
-     Gold starts at ZERO on purpose: the market is something you earn your way into, and
-     a Gold Mine costs 3 Gold, so the first one is about 90 seconds of HQ income away. */
-  start:{wood:30, food:20, gold:0},
+  /* This is the pot you are HANDED, before setup. The three camps come straight out of
+     it — 33 Wood and 6 Food — leaving 12 Wood and 10 Food on the clock's first tick.
+     The pot is sized BACKWARDS from that leftover, so moving a camp price means moving
+     this too or the subtraction lands somewhere nobody chose.
+     Both players spent their opening minutes building the same three buildings every
+     game, so those minutes were a ritual, not a decision. They are now part of setup.
+     Gold starts at ZERO on purpose: the market is something you earn your way into. */
+  start:{wood:45, food:16, gold:0},
+  /* Placed during setup, paid for out of `start`, and scanned onto the table so the app
+     and the board agree about where they are. Order does not matter — every ordering is
+     affordable from the opening pot. */
+  openingCamps:['lumber','farm','mine'],
   /* Abilities are kept, not spent: four slots, each with its own cooldown. Two of them
      arrive filled, which is why the game opens with something to do. */
   abilitySlots:4,
@@ -11065,9 +11109,17 @@ function coolFor(p, id){
 function abilSlot(p, code){ return (p.abil || []).find(a => a.code === code) || null; }
 function abilByDesign(p, id){ return (p.abil || []).find(a => a.id === id) || null; }
 function abilFree(p, cfg){ return Math.max(0, (cfg.abilitySlots || 4) - (p.abil || []).length); }
-/* Nothing to scan any more — the opening hand is known — so setup exists only so both
-   players can look up before a real-time clock starts running. */
-function setupDone(){ return true; }
+/* Setup is no longer a formality. Each player scans their Lumber Camp, Farm and Gold Mine
+   onto the board and pays for them out of the opening pot; the clock will not start until
+   both have all three, because the whole point is that the game begins with all six
+   buildings standing. */
+function campsWanted(cfg){ return (cfg && cfg.openingCamps) || []; }
+function campsMissing(p, cfg){
+  return campsWanted(cfg).filter(id => !(p.board || []).some(b => b.id === id));
+}
+function setupDone(){
+  return G.players.every(p => campsMissing(p, G.cfg).length === 0);
+}
 
 function hasFlag(p, flag){ return p.board.some(b => DB[b.id].flag === flag); }
 
@@ -11407,7 +11459,9 @@ function fungible(id){ return !!(DB[id] && DB[id].fung); }
    point of the market being a two-step purchase: Gold buys you the option, and you spend
    the Food later, when you can afford it. */
 function nativeSupply(id){ return !!(DB[id] && DB[id].pers); }
-function inSupply(p, id){ return (p.pers[id] || 0) > 0; }
+/* A `tok` card is a purchase slip you keep, so its stack never runs down. */
+function reusable(id){ return !!(DB[id] && DB[id].tok); }
+function inSupply(p, id){ return reusable(id) || (p.pers[id] || 0) > 0; }
 
 function fullPrice(p, id){
   const c = DB[id], out = {wood:0, food:0, gold:0};
@@ -11497,11 +11551,13 @@ function actBuy(G, i, id, opts){
   }
   /* A market card was already counted as owned when it was bought off the row. */
 
-  const code = (opts && opts.code && !fungible(id)) ? opts.code : null;
+  /* A purchase slip keeps its printed code but never becomes a thing on the board, so it
+     is not stamped as owned and each gate it buys is an anonymous board entry. */
+  const code = (opts && opts.code && !fungible(id) && !reusable(id)) ? opts.code : null;
   if(code) p.cards[code] = 1;
 
   const nm = c.n;
-  p.pers[id]--;
+  if(!reusable(id)) p.pers[id]--;      // a purchase slip goes back in your hand
   const free = priceText(pr) === 'free';
   const paid = free ? nm : `${nm} — ${priceText(pr)}`;
 
@@ -12015,10 +12071,21 @@ function renderPanel(i){
   if(nav && nav.p === i){
     h += screenHTML(i);
   } else if(G.phase === 'setup'){
-    h += `<div class="setupbox">
-        <div class="setupn"><b>${(p.abil || []).length}</b><span>abilities ready</span></div>
-        <p class="note" style="margin:0">Move and Attack sit in front of you. Everything
-        else — including your three workstations — is bought from your supply.</p>
+    const want = campsWanted(G.cfg), left = campsMissing(p, G.cfg);
+    const done = want.length - left.length;
+    h += `<div class="setupbox${left.length ? '' : ' ready'}">
+        <div class="setupn"><b>${done}/${want.length}</b><span>camps placed</span></div>
+        <div class="camprow">${want.map(id => `<span class="campchip${
+          left.indexOf(id) < 0 ? ' in' : ''}">${DB[id].n}</span>`).join('')}</div>
+        <p class="note" style="margin:0">${left.length
+          ? (document.body.classList.contains('phone')
+              ? `Scan <b>${left.map(id => DB[id].n).join('</b>, <b>')}</b> onto nodes beside your HQ.`
+              : `Scan your <b>${left.map(id => DB[id].n).join('</b>, <b>')}</b> and put each one
+                 on a matching node beside your HQ. The cost comes out of your opening pot.`)
+          : (document.body.classList.contains('phone')
+              ? `All three up &mdash; tap Start.`
+              : `All three are up. Move and Attack are already in your ability slots &mdash;
+                 tap Start when you are both ready.`)}</p>
       </div>`;
   } else {
     h += abilHTML(i);
@@ -12281,8 +12348,17 @@ function renderPause(){
   if(G.phase === 'setup'){
     bar.hidden = false;
     bar.classList.add('setup'); bar.classList.remove('buying');
-    document.getElementById('pauseTitle').textContent = 'Ready? Both players start holding three workstations';
-    document.getElementById('pauseCount').textContent = 'tap Start when you are both set';
+    document.getElementById('table').classList.add('setupmode');
+    const short = G.players.map((p, k) => ({k, n: campsMissing(p, G.cfg).length}))
+                           .filter(x => x.n);
+    const tight = document.body.classList.contains('phone');
+    document.getElementById('pauseTitle').textContent = short.length
+      ? (tight ? 'Setup — place your three camps'
+               : 'Setup — scan your Lumber Camp, Farm and Gold Mine onto the map')
+      : (tight ? 'Both bases built — tap Start' : 'Both bases are built. Tap Start when you are ready.');
+    document.getElementById('pauseCount').textContent = short.length
+      ? short.map(x => `${tight ? 'P' + (x.k + 1) : G.players[x.k].name}: ${x.n}`).join(' · ')
+      : '';
     rb.hidden = true;
     if(cbx) cbx.hidden = true;
     if(sb) sb.hidden = !setupDone();
@@ -12290,6 +12366,7 @@ function renderPause(){
     return;
   }
   bar.classList.remove('setup');
+  document.getElementById('table').classList.remove('setupmode');
   if(sb) sb.hidden = true;
   const rbx = document.getElementById('refreshBtn');
   if(!G.paused){
@@ -12452,11 +12529,11 @@ function setSpeed(s){ G.speed = s; [1,2,4].forEach(n => document.getElementById(
 document.getElementById('startBtn').onclick = () => {
   if(!setupDone()) return;
   G.phase = 'play'; release();
-  sys('opening hands set — game started');
+  sys('both bases built — game started');
   renderBoth(); renderStats(); push();
 };
 document.getElementById('pauseBtn').onclick = () => {
-  if(G.phase === 'setup'){ scanSay('Scan both opening hands first', true); return; }
+  if(G.phase === 'setup'){ scanSay('Place all six camps first', true); return; }
   if(G.paused){ if(nav){ const i = nav.p; nav = null; renderPanel(i); } release(); sys('resumed'); }
   else { hold('Paused by hand', null, false); sys('paused'); }
   renderBoth(); push();
@@ -12618,7 +12695,7 @@ function onScan(raw){
     const i = c.owner === '1' ? 0 : c.owner === '2' ? 1 : -1;
     if(i < 0){ sndDenied(); scanSay('Not an HQ card', true); return; }
     if(netMode() && i !== NET.seat){ scanSay(`That is Player ${i+1}'s HQ`, true); return; }
-    if(G.phase === 'setup'){ sndDenied(); scanSay('Finish the opening hands first', true); return; }
+    if(G.phase === 'setup'){ sndDenied(); scanSay('Place your three camps first', true); return; }
     /* B3.1: the HQ scan is also how a Sacred Site is claimed. A site is a node tile with
        no code to scan, so the HQ card stands in for it — but buying is by far the commoner
        reason to scan an HQ, so the scan still just opens the buy window and the capture
@@ -12645,7 +12722,7 @@ function onScan(raw){
   }
   if(netMode() && i !== NET.seat) return;     // the other tablet owns this scan
 
-  if(G.phase === 'setup'){ sndDenied(); scanSay('Tap Start to begin', true); return; }
+  if(G.phase === 'setup'){ doScanSetup(i, c); return; }
 
   /* Placing a worker: the building is a card sitting on the table, so scan it and put it
      back. The tap list stays as a fallback for a building the camera will not read. */
@@ -12679,7 +12756,10 @@ function onScan(raw){
   }
   if(slot){ doScanUse(i, pl.abil.indexOf(slot)); return; }
 
-  if(findOnTable(i, c.code)){ sndDenied(); scanSay(`That ${card.n} is already on the table`, true); return; }
+  /* A purchase slip is scanned again every time you want another, so the usual "that card
+     is already on the table" guard does not apply to it. */
+  if(!reusable(c.id) && findOnTable(i, c.code)){
+    sndDenied(); scanSay(`That ${card.n} is already on the table`, true); return; }
 
   /* Your own supply needs no handshake — the stacks are in front of you. That now includes
      anything you have already bought off the market row, which is sitting in your supply
@@ -12705,6 +12785,34 @@ function doScanStaff(i, c){
   if(!r){ sndDenied(); return; }
   say(i, r); sndGain(); scanSay(r);
   closeNav(i); renderStats(); push();
+}
+
+/* A setup scan places one of the three opening camps. It goes through actBuy like any
+   other purchase, so the price, the supply count, the log line and Undo all behave
+   exactly as they would mid-game — the only difference is that the clock is not running
+   and the player cooldown is cleared, so three cards can be scanned back to back. */
+function doScanSetup(i, c){
+  const p = G.players[i], card = DB[c.id];
+  const missing = campsMissing(p, G.cfg);
+  if(campsWanted(G.cfg).indexOf(c.id) < 0){
+    sndDenied();
+    scanSay(`Setup: place your camps first — scan ${missing.map(id => DB[id].n).join(', ')}`, true);
+    return;
+  }
+  if(missing.indexOf(c.id) < 0){
+    sndDenied(); scanSay(`Your ${card.n} is already on the map`, true); return;
+  }
+  const why = buyBlocked(G, i, c.id);
+  if(why){ sndDenied(); scanSay(why, true); return; }
+  const r = actBuy(G, i, c.id, {code:c.code});
+  if(!r){ sndDenied(); return; }
+  p.cd = 0;                                   // setup is not paced by the play delay
+  const left = campsMissing(p, G.cfg);
+  const tail = left.length ? ` · still to place: ${left.map(id => DB[id].n).join(', ')}`
+                           : ' · all three placed';
+  say(i, r.log + (left.length ? '' : ' — ready'));
+  sndBuy(); scanSay(`${card.n} placed${tail}`);
+  renderBoth(); renderStats(); push();
 }
 
 function doScanLoss(i, c){
